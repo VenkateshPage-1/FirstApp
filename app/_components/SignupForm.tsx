@@ -156,18 +156,19 @@ export default function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProp
             Already have an account?{' '}
             <button
               onClick={onSwitchToLogin}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#667eea',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                fontSize: '14px',
-                fontWeight: '600',
-              }}
+              style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px', fontWeight: '600' }}
             >
               Log in here
             </button>
+          </p>
+        </div>
+
+        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #eee', textAlign: 'center' }}>
+          <p style={{ color: '#999', fontSize: '12px' }}>
+            By signing up you agree to our{' '}
+            <a href="/terms" style={{ color: '#667eea' }}>Terms of Service</a>
+            {' '}and{' '}
+            <a href="/privacy" style={{ color: '#667eea' }}>Privacy Policy</a>
           </p>
         </div>
       </div>
