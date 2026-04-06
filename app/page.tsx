@@ -45,7 +45,17 @@ export default function Home() {
   }
 
   if (isLoading) {
-    return <div className="container"><div className="login-card">Loading...</div></div>
+    return (
+      <div className="container">
+        <div className="login-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ height: '32px', width: '60%', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          <div style={{ height: '48px', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          <div style={{ height: '48px', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          <div style={{ height: '48px', width: '100%', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
+        </div>
+      </div>
+    )
   }
 
   if (isLoggedIn) {

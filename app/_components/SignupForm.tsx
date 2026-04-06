@@ -28,8 +28,27 @@ export default function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProp
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address')
+      setIsLoading(false)
+      return
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      setIsLoading(false)
+      return
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError('Password must contain at least one uppercase letter')
+      setIsLoading(false)
+      return
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError('Password must contain at least one number')
       setIsLoading(false)
       return
     }
@@ -106,7 +125,7 @@ export default function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProp
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
+              placeholder="Min 8 chars, 1 uppercase, 1 number"
               disabled={isLoading}
               autoComplete="new-password"
               required

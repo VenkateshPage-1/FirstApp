@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createSession } from '@/lib/session-store'
+import { isRateLimited, recordFailedAttempt, clearAttempts } from '@/lib/rate-limit'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -8,7 +10,6 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
 
-    // Validate input
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password required' },
@@ -16,29 +17,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: 'Password must be at least 8 characters' },
         { status: 400 }
       )
     }
 
-    // Create Supabase client for this request
+    // Get client IP
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+      request.headers.get('x-real-ip') ??
+      'unknown'
+
+    // Rate limit signup attempts per IP
+    if (await isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again in 15 minutes.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-      },
+      auth: { persistSession: false },
     })
 
-    // Sign up with Supabase
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
     })
 
     if (error) {
+      await recordFailedAttempt(ip)
+      // Don't reveal whether the email already exists
       return NextResponse.json(
-        { error: error.message || 'Failed to create account' },
+        { error: 'Could not create account. Please try again.' },
         { status: 400 }
       )
     }
@@ -50,43 +63,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create response with user data only (NO token in response!)
-    const response = NextResponse.json(
-      {
-        user: {
-          id: data.user.id,
-          email: data.user.email,
-          username: email.split('@')[0],
-        },
-        message: 'Account created successfully! Please check your email to confirm.',
-      },
-      { status: 201 }
-    )
+    await clearAttempts(ip)
 
-    // Set HttpOnly cookies if session exists
+    const isProd = process.env.NODE_ENV === 'production'
+
+    // If email confirmation is disabled in Supabase, a session is returned immediately
     if (data.session?.access_token) {
+      const sessionId = await createSession(
+        data.user.id,
+        data.session.access_token,
+        data.session.refresh_token ?? '',
+        data.session.expires_in
+      )
+
+      const response = NextResponse.json(
+        {
+          user: {
+            id: data.user.id,
+            email: data.user.email,
+            username: email.split('@')[0],
+          },
+          message: 'Account created successfully!',
+        },
+        { status: 201 }
+      )
+
       response.cookies.set({
-        name: 'sb-access-token',
-        value: data.session.access_token,
+        name: isProd ? '__Host-session' : 'session',
+        value: sessionId,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProd,
         sameSite: 'lax',
         maxAge: data.session.expires_in,
         path: '/',
       })
 
-      response.cookies.set({
-        name: 'sb-refresh-token',
-        value: data.session.refresh_token || '',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/',
-      })
+      return response
     }
 
-    return response
+    // Email confirmation is enabled — no session yet, just acknowledge
+    return NextResponse.json(
+      {
+        user: null,
+        message: 'Account created! Please check your email to confirm before logging in.',
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Signup error:', error)
     return NextResponse.json(
