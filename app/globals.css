@@ -556,7 +556,7 @@ html { -webkit-text-size-adjust: 100%; }
 /* ── Filter bar ── */
 .filter-bar {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1.4fr 1fr auto;
   gap: 10px;
   align-items: flex-end;
 }
@@ -566,9 +566,6 @@ html { -webkit-text-size-adjust: 100%; }
   max-width: 100%;
   box-sizing: border-box;
   overflow: hidden;
-  height: 38px;
-  padding-top: 0;
-  padding-bottom: 0;
 }
 .filter-add-btn {
   white-space: nowrap;

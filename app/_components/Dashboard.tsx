@@ -58,7 +58,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [form, setForm] = useState<ExpenseForm>(emptyForm)
   const [isSavingExpense, setIsSavingExpense] = useState(false)
-  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7))
+  const now = new Date()
+  const [filterYear, setFilterYear] = useState(now.getFullYear())
+  const [filterMonthNum, setFilterMonthNum] = useState(now.getMonth() + 1)
+  const filterMonth = `${filterYear}-${String(filterMonthNum).padStart(2, '0')}`
   const [filterCategory, setFilterCategory] = useState('All')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -466,11 +469,22 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 {/* Filter bar + add button */}
                 <div style={card({ padding: '14px 18px', overflow: 'hidden' })}>
                   <div className="filter-bar">
-                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
                       <p style={lbl}>Month</p>
-                      <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, display: 'block', width: '100%', maxWidth: '100%' }} />
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <select value={filterMonthNum} onChange={e => setFilterMonthNum(Number(e.target.value))} style={{ ...inp, flex: 1, minWidth: 0 }}>
+                          {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
+                            <option key={i} value={i + 1}>{m}</option>
+                          ))}
+                        </select>
+                        <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} style={{ ...inp, width: '72px', flexShrink: 0 }}>
+                          {Array.from({ length: 4 }, (_, i) => now.getFullYear() - i).map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
                       <p style={lbl}>Category</p>
                       <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...inp, display: 'block', width: '100%', maxWidth: '100%' }}>
                         <option>All</option>
