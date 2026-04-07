@@ -444,12 +444,20 @@ html { -webkit-text-size-adjust: 100%; }
   gap: 16px;
   align-items: start;
 }
+.dash-grid > * {
+  min-width: 0;
+  overflow: hidden;
+}
 
 .dash-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-bottom: 20px;
+}
+.dash-summary > * {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .dash-nav {
@@ -600,6 +608,13 @@ html { -webkit-text-size-adjust: 100%; }
   /* More gap between form groups */
   .form-group {
     margin-bottom: 20px;
+  }
+
+  /* Force all white cards to stay within screen */
+  .dash-grid > * > div,
+  .dash-grid > div {
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
 
