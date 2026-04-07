@@ -10,7 +10,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const userId = await getAuthenticatedUserId(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { amount, category, description, date } = await request.json()
+    const { amount, category, description, date, payment_method } = await request.json()
 
     if (!amount || !category || !date) {
       return NextResponse.json({ error: 'Amount, category and date are required' }, { status: 400 })
@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Ensure the expense belongs to this user before updating
     const { data, error } = await admin
       .from('expenses')
-      .update({ amount: Number(amount), category, description: description ?? '', date })
+      .update({ amount: Number(amount), category, description: description ?? '', date, payment_method: payment_method ?? 'Cash' })
       .eq('id', params.id)
       .eq('user_id', userId)
       .select()

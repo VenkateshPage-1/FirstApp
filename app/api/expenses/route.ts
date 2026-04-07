@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const userId = await getAuthenticatedUserId(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { amount, category, description, date } = await request.json()
+    const { amount, category, description, date, payment_method } = await request.json()
 
     if (!amount || !category || !date) {
       return NextResponse.json({ error: 'Amount, category and date are required' }, { status: 400 })
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
         category,
         description: description ?? '',
         date,
+        payment_method: payment_method ?? 'Cash',
       })
       .select()
       .single()

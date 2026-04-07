@@ -6,6 +6,8 @@ const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000
 const WARNING_BEFORE_MS = 60 * 1000
 const CACHE_TTL_MS = 60 * 1000 // 1 minute cache per month/category
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bills', 'Health', 'Entertainment', 'Other']
+const PAYMENT_METHODS = ['PhonePe', 'GPay', 'Bank Transfer', 'Cash']
+const PAYMENT_ICON: Record<string, string> = { PhonePe: '📲', GPay: '🔵', 'Bank Transfer': '🏦', Cash: '💵' }
 
 const CAT_COLOR: Record<string, string> = {
   Food: '#f97316', Transport: '#06b6d4', Shopping: '#8b5cf6',
@@ -21,13 +23,14 @@ const CAT_ICON: Record<string, string> = {
 }
 
 interface DashboardProps { username: string; onLogout: () => void }
-interface Expense { id: string; amount: number; category: string; description: string; date: string }
-interface ExpenseForm { amount: string; category: string; description: string; date: string }
+interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
+interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
 interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string }
 
 const emptyForm: ExpenseForm = {
   amount: '', category: 'Food', description: '',
   date: new Date().toISOString().split('T')[0],
+  payment_method: 'Cash',
 }
 const emptyProfile: UserProfile = {
   full_name: '', bio: '', phone: '', location: '', website: '', occupation: '',
@@ -179,6 +182,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
       category: form.category,
       description: form.description,
       date: form.date,
+      payment_method: form.payment_method,
     }
 
     // Optimistic update — instant UI
@@ -267,7 +271,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
   const handleEditExpense = (expense: Expense) => {
     setEditingExpense(expense)
-    setForm({ amount: String(expense.amount), category: expense.category, description: expense.description, date: expense.date })
+    setForm({ amount: String(expense.amount), category: expense.category, description: expense.description, date: expense.date, payment_method: expense.payment_method ?? 'Cash' })
     setShowAddForm(true)
     setConfirmDeleteId(null)
   }
@@ -549,6 +553,12 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                           <input type="text" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                             placeholder="e.g. Lunch at cafe" style={inp} maxLength={200} />
                         </div>
+                        <div>
+                          <p style={lbl}>Payment via</p>
+                          <select value={form.payment_method} onChange={e => setForm(p => ({ ...p, payment_method: e.target.value }))} style={inp}>
+                            {PAYMENT_METHODS.map(m => <option key={m}>{m}</option>)}
+                          </select>
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button type="submit" className={btnClass('primary')} style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '8px 18px' })} disabled={isSavingExpense}>
@@ -594,6 +604,9 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                                   <p style={{ fontWeight: 600, fontSize: '14px', color: '#0f172a', marginBottom: '1px' }}>{expense.category}</p>
                                   <p style={{ fontSize: '12px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {expense.description || '—'} · {expense.date}
+                                  </p>
+                                  <p style={{ fontSize: '11px', color: '#cbd5e1', marginTop: '1px' }}>
+                                    {PAYMENT_ICON[expense.payment_method] ?? '💵'} {expense.payment_method ?? 'Cash'}
                                   </p>
                                 </div>
                                 <p style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a', flexShrink: 0 }}>₹{expense.amount.toFixed(2)}</p>
