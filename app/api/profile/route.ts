@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const userId = await getAuthenticatedUserId(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { full_name, bio, phone, location, website, occupation, monthly_income, savings_goal_pct, category_budgets } = await request.json()
+    const { full_name, bio, phone, location, website, occupation, monthly_income, savings_goal_pct, category_budgets, emis } = await request.json()
 
     const admin = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
     const { error } = await admin
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         ...(monthly_income !== undefined && { monthly_income: Number(monthly_income) }),
         ...(savings_goal_pct !== undefined && { savings_goal_pct: Number(savings_goal_pct) }),
         ...(category_budgets !== undefined && { category_budgets }),
+        ...(emis !== undefined && { emis }),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
 

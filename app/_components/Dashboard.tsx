@@ -25,7 +25,8 @@ const CAT_ICON: Record<string, string> = {
 interface DashboardProps { username: string; onLogout: () => void }
 interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
-interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number> }
+interface EMI { id: string; name: string; amount: number; months_remaining: number }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[] }
 
 const emptyForm: ExpenseForm = {
   amount: '', category: 'Food', description: '',
@@ -34,7 +35,7 @@ const emptyForm: ExpenseForm = {
 }
 const emptyProfile: UserProfile = {
   full_name: '', bio: '', phone: '', location: '', website: '', occupation: '',
-  monthly_income: 0, savings_goal_pct: 20, category_budgets: {},
+  monthly_income: 0, savings_goal_pct: 20, category_budgets: {}, emis: [],
 }
 type Tab = 'expenses' | 'analytics' | 'profile'
 
@@ -83,11 +84,14 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [profileSuccess, setProfileSuccess] = useState('')
 
   // Premium analytics setup state
-  const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=budgets
+  const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=emis, 3=budgets
   const [setupIncome, setSetupIncome] = useState('')
   const [setupSavingsPct, setSetupSavingsPct] = useState('20')
   const [setupBudgets, setSetupBudgets] = useState<Record<string, string>>({})
+  const [setupEmis, setSetupEmis] = useState<EMI[]>([])
   const [isSavingAnalytics, setIsSavingAnalytics] = useState(false)
+  const [isEditingAnalytics, setIsEditingAnalytics] = useState(false)
+  const [analyticsSuccess, setAnalyticsSuccess] = useState('')
 
   const isLoggingOut = useRef(false)
   const handleLogout = useCallback(async () => {
@@ -731,23 +735,29 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           const income = userProfile.monthly_income ?? 0
           const savingsGoal = userProfile.savings_goal_pct ?? 20
           const catBudgets = userProfile.category_budgets ?? {}
+          const emis = userProfile.emis ?? []
+          const totalEMI = emis.reduce((s, e) => s + e.amount, 0)
+          const disposableIncome = Math.max(0, income - totalEMI)
           const isSetup = income > 0
 
-          // Calculations
-          const savings = Math.max(0, income - totalThisMonth)
-          const savingsRate = income > 0 ? (savings / income) * 100 : 0
+          // EMI-aware calculations (use disposable income for ratios)
+          const variableSpend = Math.max(0, totalThisMonth - totalEMI)
+          const savings = Math.max(0, disposableIncome - variableSpend)
+          const savingsRate = disposableIncome > 0 ? (savings / disposableIncome) * 100 : 0
           const needsTotal = expenses.filter(e => NEEDS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
           const wantsTotal = expenses.filter(e => WANTS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
-          const needsPct = income > 0 ? (needsTotal / income) * 100 : 0
-          const wantsPct = income > 0 ? (wantsTotal / income) * 100 : 0
-          const savingsPct = income > 0 ? (savings / income) * 100 : 0
+          const needsPct = disposableIncome > 0 ? (needsTotal / disposableIncome) * 100 : 0
+          const wantsPct = disposableIncome > 0 ? (wantsTotal / disposableIncome) * 100 : 0
+          const savingsPct = disposableIncome > 0 ? (savings / disposableIncome) * 100 : 0
+          const emiPct = income > 0 ? (totalEMI / income) * 100 : 0
 
-          // Month-end forecast
+          // Month-end forecast (variable spend only, EMI is fixed)
           const daysInMonth = new Date(filterYear, filterMonthNum, 0).getDate()
           const dayOfMonth = filterMonth === new Date().toISOString().slice(0,7)
             ? new Date().getDate() : daysInMonth
-          const dailyRate = dayOfMonth > 0 ? totalThisMonth / dayOfMonth : 0
-          const forecastTotal = dailyRate * daysInMonth
+          const dailyRate = dayOfMonth > 0 ? variableSpend / dayOfMonth : 0
+          const forecastVariable = dailyRate * daysInMonth
+          const forecastTotal = forecastVariable + totalEMI
           const forecastSavings = income > 0 ? Math.max(0, income - forecastTotal) : 0
 
           // Payment split
@@ -757,34 +767,54 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           }, {})
 
           // Financial health score (0-100)
-          const savingsScore = Math.min(40, (savingsRate / savingsGoal) * 40)
+          const savingsScore = Math.min(35, (savingsRate / savingsGoal) * 35)
           const budgetCats = CATEGORIES.filter(c => catBudgets[c] > 0)
           const budgetScore = budgetCats.length > 0
             ? (budgetCats.filter(c => {
                 const spent = expenses.filter(e => e.category === c).reduce((s,e) => s+e.amount,0)
                 return spent <= catBudgets[c]
-              }).length / budgetCats.length) * 40 : 20
-          const consistencyScore = Math.min(20, (expenses.length / 10) * 20)
-          const healthScore = Math.round(savingsScore + budgetScore + consistencyScore)
+              }).length / budgetCats.length) * 35 : 17
+          const consistencyScore = Math.min(15, (expenses.length / 10) * 15)
+          const emiHealthScore = emiPct <= 30 ? 15 : emiPct <= 40 ? 8 : 0
+          const healthScore = Math.round(savingsScore + budgetScore + consistencyScore + emiHealthScore)
           const scoreColor = healthScore >= 70 ? '#10b981' : healthScore >= 40 ? '#f59e0b' : '#ef4444'
           const scoreLabel = healthScore >= 70 ? 'Excellent' : healthScore >= 40 ? 'Fair' : 'Needs Work'
 
-          const handleSaveAnalyticsSetup = async () => {
+          const saveAnalytics = async (income: number, savPct: number, budgets: Record<string,number>, emisList: EMI[]) => {
             setIsSavingAnalytics(true)
-            const budgets: Record<string,number> = {}
-            CATEGORIES.forEach(c => { if (setupBudgets[c]) budgets[c] = Number(setupBudgets[c]) })
             await fetch('/api/profile', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...userProfile,
-                monthly_income: Number(setupIncome),
-                savings_goal_pct: Number(setupSavingsPct),
-                category_budgets: budgets,
-              }),
+              body: JSON.stringify({ ...userProfile, monthly_income: income, savings_goal_pct: savPct, category_budgets: budgets, emis: emisList }),
             })
-            setUserProfile(p => ({ ...p, monthly_income: Number(setupIncome), savings_goal_pct: Number(setupSavingsPct), category_budgets: budgets }))
+            setUserProfile(p => ({ ...p, monthly_income: income, savings_goal_pct: savPct, category_budgets: budgets, emis: emisList }))
             setIsSavingAnalytics(false)
+            setIsEditingAnalytics(false)
+            setAnalyticsSuccess('Saved!')
+            setTimeout(() => setAnalyticsSuccess(''), 2500)
+          }
+
+          const handleSaveAnalyticsSetup = async () => {
+            const budgets: Record<string,number> = {}
+            CATEGORIES.forEach(c => { if (setupBudgets[c]) budgets[c] = Number(setupBudgets[c]) })
+            await saveAnalytics(Number(setupIncome), Number(setupSavingsPct), budgets, setupEmis)
+          }
+
+          const handleSaveAnalyticsEdit = async () => {
+            await saveAnalytics(
+              Number(setupIncome) || income,
+              Number(setupSavingsPct) || savingsGoal,
+              Object.fromEntries(CATEGORIES.filter(c => setupBudgets[c]).map(c => [c, Number(setupBudgets[c])])),
+              setupEmis
+            )
+          }
+
+          const startEditing = () => {
+            setSetupIncome(String(income))
+            setSetupSavingsPct(String(savingsGoal))
+            setSetupBudgets(Object.fromEntries(Object.entries(catBudgets).map(([k,v])=>[k,String(v)])))
+            setSetupEmis(emis.map(e => ({ ...e })))
+            setIsEditingAnalytics(true)
           }
 
           if (!isSetup) {
@@ -796,19 +826,19 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
                   <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>Unlock Premium Analytics</h2>
                   <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
-                    Answer 3 quick questions to get your personal Financial Health Score, 50/30/20 rule tracker, savings forecast, and budget alerts.
+                    Answer 4 quick questions to get your Financial Health Score, EMI impact, 50/30/20 tracker, savings forecast, and budget alerts.
                   </p>
                 </div>
 
                 {/* Step indicator */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', justifyContent: 'center' }}>
-                  {['Income', 'Savings Goal', 'Category Budgets'].map((s, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: analyticsSetupStep >= i ? '#6366f1' : '#e2e8f0', color: analyticsSetupStep >= i ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {['Income', 'Savings', 'EMIs', 'Budgets'].map((s, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: analyticsSetupStep >= i ? '#6366f1' : '#e2e8f0', color: analyticsSetupStep >= i ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>
                         {analyticsSetupStep > i ? '✓' : i + 1}
                       </div>
                       <span style={{ fontSize: '12px', color: analyticsSetupStep >= i ? '#6366f1' : '#94a3b8', fontWeight: analyticsSetupStep >= i ? 600 : 400 }}>{s}</span>
-                      {i < 2 && <div style={{ width: '20px', height: '2px', background: analyticsSetupStep > i ? '#6366f1' : '#e2e8f0', borderRadius: '1px' }} />}
+                      {i < 3 && <div style={{ width: '16px', height: '2px', background: analyticsSetupStep > i ? '#6366f1' : '#e2e8f0', borderRadius: '1px' }} />}
                     </div>
                   ))}
                 </div>
@@ -816,7 +846,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 {/* Step 0: Income */}
                 {analyticsSetupStep === 0 && (
                   <div className="fade-in" style={card()}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>💰 What is your monthly take-home income?</h3>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>💰 Monthly take-home income?</h3>
                     <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>After tax. This is the foundation of every financial ratio — savings rate, budget allocation, everything.</p>
                     <p style={lbl}>Monthly Income (₹)</p>
                     <input type="number" value={setupIncome} onChange={e => setSetupIncome(e.target.value)} placeholder="e.g. 50000" style={{ ...inp, marginBottom: '20px' }} autoFocus />
@@ -830,8 +860,8 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 {/* Step 1: Savings goal */}
                 {analyticsSetupStep === 1 && (
                   <div className="fade-in" style={card()}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>🎯 What % of income do you want to save?</h3>
-                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>Financial experts recommend saving at least <strong>20%</strong> (the 50/30/20 rule). Warren Buffett saves 50%+. Start with what's realistic for you.</p>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>🎯 What % do you want to save?</h3>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>Experts recommend at least <strong>20%</strong>. Warren Buffett saves 50%+. Start with what's realistic.</p>
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
                       {['10', '20', '30', '40', '50'].map(p => (
                         <button key={p} onClick={() => setSetupSavingsPct(p)}
@@ -840,10 +870,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         </button>
                       ))}
                     </div>
-                    <p style={lbl}>Or enter custom %</p>
-                    <input type="number" min="1" max="100" value={setupSavingsPct} onChange={e => setSetupSavingsPct(e.target.value)} style={{ ...inp, marginBottom: '20px' }} />
+                    <p style={lbl}>Custom %</p>
+                    <input type="number" min="1" max="100" value={setupSavingsPct} onChange={e => setSetupSavingsPct(e.target.value)} style={{ ...inp, marginBottom: '12px' }} />
                     <p style={{ fontSize: '12px', color: '#10b981', marginBottom: '16px', fontWeight: 500 }}>
-                      💡 At ₹{Number(setupIncome).toLocaleString('en-IN')} income, saving {setupSavingsPct}% = ₹{Math.round(Number(setupIncome) * Number(setupSavingsPct) / 100).toLocaleString('en-IN')}/month
+                      💡 Saving {setupSavingsPct}% = ₹{Math.round(Number(setupIncome) * Number(setupSavingsPct) / 100).toLocaleString('en-IN')}/month
                     </p>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={() => setAnalyticsSetupStep(0)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>← Back</button>
@@ -852,11 +882,53 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   </div>
                 )}
 
-                {/* Step 2: Category budgets */}
+                {/* Step 2: EMIs */}
                 {analyticsSetupStep === 2 && (
                   <div className="fade-in" style={card()}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>📦 Set monthly budget per category</h3>
-                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '16px' }}>This enables budget vs actual alerts. Skip any category you don't want to track.</p>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>🏦 Any monthly EMIs?</h3>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '16px' }}>Home loan, car loan, personal loan etc. EMIs are fixed liabilities — analytics will use your <strong>disposable income</strong> (salary − EMIs) for all ratios.</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                      {setupEmis.map((emi, i) => (
+                        <div key={emi.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '10px 12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                          <div style={{ flex: 1 }}>
+                            <input value={emi.name} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, name: e.target.value} : x))}
+                              placeholder="e.g. Home Loan" style={{ ...inp, marginBottom: '6px', fontSize: '13px' }} />
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <input type="number" value={emi.amount || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, amount: Number(e.target.value)} : x))}
+                                placeholder="₹ EMI amount" style={{ ...inp, flex: 1, fontSize: '13px' }} />
+                              <input type="number" value={emi.months_remaining || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, months_remaining: Number(e.target.value)} : x))}
+                                placeholder="Months left" style={{ ...inp, flex: 1, fontSize: '13px' }} />
+                            </div>
+                          </div>
+                          <button onClick={() => setSetupEmis(prev => prev.filter((_,j) => j!==i))}
+                            style={{ background: '#fef2f2', color: '#ef4444', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', flexShrink: 0 }}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={() => setSetupEmis(prev => [...prev, { id: Date.now().toString(), name: '', amount: 0, months_remaining: 0 }])}
+                        style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px dashed #c7d2fe', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        + Add EMI
+                      </button>
+                    </div>
+                    {setupEmis.length > 0 && (
+                      <div style={{ padding: '10px 12px', background: '#f0fdf4', borderRadius: '8px', marginBottom: '16px' }}>
+                        <p style={{ fontSize: '12px', color: '#065f46', fontWeight: 500 }}>
+                          Total EMI: ₹{setupEmis.reduce((s,e) => s+e.amount,0).toLocaleString('en-IN')}/month ·
+                          Disposable income: ₹{Math.max(0, Number(setupIncome) - setupEmis.reduce((s,e)=>s+e.amount,0)).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => setAnalyticsSetupStep(1)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>← Back</button>
+                      <button onClick={() => setAnalyticsSetupStep(3)} style={{ flex: 2, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Continue →</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Category budgets */}
+                {analyticsSetupStep === 3 && (
+                  <div className="fade-in" style={card()}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>📦 Monthly budget per category</h3>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '16px' }}>Enables budget vs actual alerts. Skip any you don't want to track.</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                       {CATEGORIES.map(cat => (
                         <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -868,7 +940,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                       ))}
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={() => setAnalyticsSetupStep(1)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>← Back</button>
+                      <button onClick={() => setAnalyticsSetupStep(2)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>← Back</button>
                       <button onClick={handleSaveAnalyticsSetup} disabled={isSavingAnalytics}
                         style={{ flex: 2, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                         {isSavingAnalytics ? <span className="dot-loader"><span/><span/><span/></span> : '🚀 Unlock Analytics'}
@@ -883,13 +955,73 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           // ── ANALYTICS DASHBOARD ──
           return (
             <div>
-              {/* Reconfigure link */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-                <button onClick={() => { setSetupIncome(String(income)); setSetupSavingsPct(String(savingsGoal)); setSetupBudgets(Object.fromEntries(Object.entries(catBudgets).map(([k,v])=>[k,String(v)]))); setUserProfile(p => ({ ...p, monthly_income: 0 })) }}
-                  style={{ fontSize: '12px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  ⚙️ Update settings
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0 }}>✨ Premium Analytics</h2>
+                  <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Based on ₹{income.toLocaleString('en-IN')}/mo income · ₹{totalEMI.toLocaleString('en-IN')}/mo EMI · ₹{disposableIncome.toLocaleString('en-IN')} disposable</p>
+                </div>
+                <button onClick={startEditing} style={{ background: '#eef2ff', color: '#6366f1', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ✏️ Edit Settings
                 </button>
               </div>
+              {analyticsSuccess && <div className="alert-success fade-in" style={{ marginBottom: '14px' }}>{analyticsSuccess}</div>}
+
+              {/* Edit Settings Modal */}
+              {isEditingAnalytics && (
+                <div className="fade-in" style={card({ border: '2px solid #6366f1', padding: '20px 24px' })}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>✏️ Update Analytics Settings</h3>
+                  <div style={{ display: 'grid', gap: '14px', marginBottom: '16px' }}>
+                    <div>
+                      <p style={lbl}>Monthly Income (₹)</p>
+                      <input type="number" value={setupIncome} onChange={e => setSetupIncome(e.target.value)} style={inp} />
+                    </div>
+                    <div>
+                      <p style={lbl}>Savings Goal (%)</p>
+                      <input type="number" min="1" max="100" value={setupSavingsPct} onChange={e => setSetupSavingsPct(e.target.value)} style={inp} />
+                    </div>
+                  </div>
+                  <p style={{ ...lbl, marginBottom: '10px' }}>EMIs</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                    {setupEmis.map((emi, i) => (
+                      <div key={emi.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '10px 12px', background: '#f8fafc', borderRadius: '10px' }}>
+                        <div style={{ flex: 1 }}>
+                          <input value={emi.name} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, name: e.target.value} : x))}
+                            placeholder="Loan name" style={{ ...inp, marginBottom: '6px', fontSize: '13px' }} />
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <input type="number" value={emi.amount || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, amount: Number(e.target.value)} : x))}
+                              placeholder="₹ EMI" style={{ ...inp, flex: 1, fontSize: '13px' }} />
+                            <input type="number" value={emi.months_remaining || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, months_remaining: Number(e.target.value)} : x))}
+                              placeholder="Months left" style={{ ...inp, flex: 1, fontSize: '13px' }} />
+                          </div>
+                        </div>
+                        <button onClick={() => setSetupEmis(prev => prev.filter((_,j) => j!==i))}
+                          style={{ background: '#fef2f2', color: '#ef4444', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>✕</button>
+                      </div>
+                    ))}
+                    <button onClick={() => setSetupEmis(prev => [...prev, { id: Date.now().toString(), name: '', amount: 0, months_remaining: 0 }])}
+                      style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px dashed #c7d2fe', borderRadius: '10px', padding: '9px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add EMI</button>
+                  </div>
+                  <p style={{ ...lbl, marginBottom: '10px' }}>Category Budgets (₹/month)</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                    {CATEGORIES.map(cat => (
+                      <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '16px', width: '22px' }}>{CAT_ICON[cat]}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', width: '100px' }}>{cat}</span>
+                        <input type="number" min="0" value={setupBudgets[cat] ?? ''} onChange={e => setSetupBudgets(p => ({ ...p, [cat]: e.target.value }))}
+                          placeholder="₹ limit" style={{ ...inp, flex: 1 }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => setIsEditingAnalytics(false)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                    <button onClick={handleSaveAnalyticsEdit} disabled={isSavingAnalytics}
+                      style={{ flex: 2, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {isSavingAnalytics ? <span className="dot-loader"><span/><span/><span/></span> : '💾 Save & Re-run Analytics'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="dash-grid">
                 {/* LEFT COLUMN */}
@@ -968,12 +1100,14 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   <div style={card()}>
                     <p style={{ ...lbl, marginBottom: '12px' }}>Month-end Forecast</p>
                     <p style={{ fontSize: '22px', fontWeight: 800, color: forecastTotal > income ? '#ef4444' : '#0f172a', letterSpacing: '-0.5px' }}>₹{forecastTotal.toFixed(0)}</p>
-                    <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>Projected spend · ₹{dailyRate.toFixed(0)}/day pace</p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
+                      Variable: ₹{forecastVariable.toFixed(0)} (₹{dailyRate.toFixed(0)}/day) + EMI: ₹{totalEMI.toLocaleString('en-IN')}
+                    </p>
                     {income > 0 && (
                       <div style={{ padding: '10px 12px', borderRadius: '8px', background: forecastTotal > income ? '#fef2f2' : '#f0fdf4', fontSize: '12px', color: forecastTotal > income ? '#b91c1c' : '#065f46', fontWeight: 500 }}>
                         {forecastTotal > income
                           ? `⚠️ You'll overspend by ₹${(forecastTotal - income).toFixed(0)} this month`
-                          : `✅ Projected savings: ₹${forecastSavings.toFixed(0)}`}
+                          : `✅ Projected savings: ₹${(income - forecastTotal).toFixed(0)}`}
                       </div>
                     )}
                   </div>
@@ -1002,6 +1136,44 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                           </div>
                         )
                       })}
+                    </div>
+                  )}
+
+                  {/* EMI breakdown */}
+                  {emis.length > 0 && (
+                    <div style={card()}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                        <p style={lbl}>EMI Tracker</p>
+                        <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: emiPct > 40 ? '#fef2f2' : emiPct > 30 ? '#fffbeb' : '#f0fdf4', color: emiPct > 40 ? '#ef4444' : emiPct > 30 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>
+                          {emiPct.toFixed(0)}% of income
+                        </span>
+                      </div>
+                      {emis.map(emi => {
+                        const debtFreeDate = new Date()
+                        debtFreeDate.setMonth(debtFreeDate.getMonth() + emi.months_remaining)
+                        return (
+                          <div key={emi.id} style={{ marginBottom: '14px', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>🏦 {emi.name}</span>
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>₹{emi.amount.toLocaleString('en-IN')}/mo</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
+                              <span>{emi.months_remaining} months remaining</span>
+                              <span>Debt-free: {debtFreeDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>
+                            </div>
+                            <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', marginTop: '8px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.max(5, 100 - (emi.months_remaining / 240) * 100)}%`, background: '#6366f1', borderRadius: '2px' }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                      <div style={{ padding: '10px 12px', background: emiPct > 40 ? '#fef2f2' : '#f0fdf4', borderRadius: '8px', fontSize: '12px', color: emiPct > 40 ? '#b91c1c' : '#065f46', fontWeight: 500 }}>
+                        {emiPct > 40
+                          ? `⚠️ EMIs exceed 40% of income. High debt stress — consider prepayment.`
+                          : emiPct > 30
+                          ? `🟡 EMIs at ${emiPct.toFixed(0)}% of income. Manageable but watch expenses.`
+                          : `✅ EMI-to-income ratio is healthy (below 30%).`}
+                      </div>
                     </div>
                   )}
 
