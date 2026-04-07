@@ -39,6 +39,8 @@ const cache: Record<string, { data: Expense[]; ts: number }> = {}
 
 export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [tab, setTab] = useState<Tab>('expenses')
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const warningTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showInactivityWarning, setShowInactivityWarning] = useState(false)
@@ -91,6 +93,16 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
       if (warningTimer.current) clearTimeout(warningTimer.current)
     }
   }, [resetInactivityTimer])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const cacheKey = `${filterMonth}__${filterCategory}`
 
@@ -436,12 +448,38 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
             ))}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '13px' }}>
+        <div ref={userMenuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowUserMenu(v => !v)}
+            style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}
+            aria-label="User menu">
             {username[0]?.toUpperCase()}
-          </div>
-          <span className="hide-xs" style={{ fontSize: '13px', fontWeight: 500, color: '#475569' }}>{username}</span>
-          <button onClick={handleLogout} className={btnClass('danger')} style={btn('#fef2f2', '#ef4444', { border: '1px solid #fee2e2', padding: '5px 12px' })}>Sign out</button>
+          </button>
+
+          {showUserMenu && (
+            <div style={{ position: 'absolute', right: 0, top: '42px', background: 'white', borderRadius: '12px', border: '1px solid #f1f5f9', boxShadow: '0 8px 24px rgba(0,0,0,0.10)', minWidth: '200px', zIndex: 100, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '2px' }}>{username}</p>
+                <p style={{ fontSize: '11px', color: '#94a3b8' }}>Signed in</p>
+              </div>
+              <div style={{ padding: '6px' }}>
+                <button
+                  onClick={() => { setShowUserMenu(false); setTab('profile') }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', color: '#475569', fontFamily: 'inherit', textAlign: 'left' }}
+                  onMouseOver={e => (e.currentTarget.style.background = '#f8fafc')}
+                  onMouseOut={e => (e.currentTarget.style.background = 'none')}>
+                  <span>👤</span> Profile
+                </button>
+                <button
+                  onClick={() => { setShowUserMenu(false); handleLogout() }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', color: '#ef4444', fontFamily: 'inherit', textAlign: 'left' }}
+                  onMouseOver={e => (e.currentTarget.style.background = '#fef2f2')}
+                  onMouseOut={e => (e.currentTarget.style.background = 'none')}>
+                  <span>↪</span> Sign out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
