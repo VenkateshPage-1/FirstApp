@@ -1031,7 +1031,51 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 <div>
                   {/* Financial Health Score */}
                   <div style={card({ textAlign: 'center', padding: '28px 24px' })}>
-                    <p style={lbl}>Financial Health Score</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <p style={lbl}>Financial Health Score</p>
+                      <div style={{ position: 'relative', display: 'inline-block' }}
+                        onMouseEnter={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'block' }}
+                        onMouseLeave={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'none' }}>
+                        <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#e2e8f0', color: '#64748b', fontSize: '10px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', marginBottom: '3px' }}>?</span>
+                        <div className="score-tooltip" style={{ display: 'none', position: 'absolute', bottom: '22px', left: '50%', transform: 'translateX(-50%)', width: '260px', background: '#1e293b', color: 'white', borderRadius: '12px', padding: '14px 16px', fontSize: '12px', lineHeight: 1.7, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', textAlign: 'left' }}>
+                          <p style={{ fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>How it's calculated (out of 100)</p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: '#94a3b8' }}>💰 Savings Rate</span>
+                            <span style={{ color: scoreColor, fontWeight: 600 }}>{Math.round(savingsScore)}/35</span>
+                          </div>
+                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '8px' }}>
+                            ({savingsRate.toFixed(1)}% saved ÷ {savingsGoal}% goal) × 35
+                          </p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: '#94a3b8' }}>📦 Budget Adherence</span>
+                            <span style={{ color: scoreColor, fontWeight: 600 }}>{Math.round(budgetScore)}/35</span>
+                          </div>
+                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '8px' }}>
+                            {budgetCats.length > 0 ? `${budgetCats.filter(c => expenses.filter(e => e.category===c).reduce((s,e)=>s+e.amount,0) <= catBudgets[c]).length} of ${budgetCats.length} categories within budget` : 'No budgets set (neutral 17pts)'}
+                          </p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: '#94a3b8' }}>📝 Consistency</span>
+                            <span style={{ color: scoreColor, fontWeight: 600 }}>{Math.round(consistencyScore)}/15</span>
+                          </div>
+                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '8px' }}>
+                            {expenses.length} transactions logged this month
+                          </p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: '#94a3b8' }}>🏦 EMI Health</span>
+                            <span style={{ color: scoreColor, fontWeight: 600 }}>{emiHealthScore}/15</span>
+                          </div>
+                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '10px' }}>
+                            EMI = {emiPct.toFixed(0)}% of income {emiPct <= 30 ? '(healthy ≤30%)' : emiPct <= 40 ? '(watch out 31–40%)' : '(danger >40%)'}
+                          </p>
+                          <div style={{ borderTop: '1px solid #334155', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Total</span>
+                            <span style={{ color: scoreColor, fontWeight: 700 }}>{healthScore}/100 · {scoreLabel}</span>
+                          </div>
+                          {/* Arrow */}
+                          <div style={{ position: 'absolute', bottom: '-6px', left: '50%', transform: 'translateX(-50%)', width: '12px', height: '12px', background: '#1e293b', borderRadius: '2px', rotate: '45deg' }} />
+                        </div>
+                      </div>
+                    </div>
                     <div style={{ position: 'relative', width: '120px', height: '120px', margin: '16px auto' }}>
                       <svg viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
                         <circle cx="60" cy="60" r="50" fill="none" stroke="#f1f5f9" strokeWidth="10" />
@@ -1043,7 +1087,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         <span style={{ fontSize: '11px', color: scoreColor, fontWeight: 600 }}>{scoreLabel}</span>
                       </div>
                     </div>
-                    <p style={{ fontSize: '12px', color: '#94a3b8' }}>Based on savings rate, budget adherence &amp; consistency</p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8' }}>Hover <strong>?</strong> above for breakdown</p>
                   </div>
 
                   {/* 50/30/20 Rule */}
