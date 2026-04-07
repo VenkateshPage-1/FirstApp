@@ -539,6 +539,22 @@ html { -webkit-text-size-adjust: 100%; }
   .hide-xs { display: none !important; }
 }
 
+/* ── Expense row actions ── */
+/* Desktop: hide buttons, show on hover */
+.expense-actions {
+  display: none !important;
+}
+.expense-row:hover .expense-actions {
+  display: flex !important;
+}
+
+/* Mobile: always show buttons */
+@media (max-width: 640px) {
+  .expense-actions {
+    display: flex !important;
+  }
+}
+
 /* ── Bottom nav (mobile only) ── */
 .dash-bottom-nav {
   display: none;

@@ -547,28 +547,32 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         {expenses.map(expense => (
                           <div key={expense.id}>
                             <div
-                              className={`expense-row expense-row-inner${deletingId === expense.id ? ' deleting' : ' adding'}`}
-                              style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', background: CAT_BG[expense.category] || '#f8fafc', borderRadius: '10px', border: `1px solid ${CAT_COLOR[expense.category]}22` }}>
-                              <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: CAT_COLOR[expense.category] || '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
-                                {CAT_ICON[expense.category] || '📦'}
+                              className={`expense-row${deletingId === expense.id ? ' deleting' : ' adding'}`}
+                              style={{ padding: '11px 13px', background: CAT_BG[expense.category] || '#f8fafc', borderRadius: '10px', border: `1px solid ${CAT_COLOR[expense.category]}22` }}>
+                              {/* Top row: icon + text + amount */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: CAT_COLOR[expense.category] || '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
+                                  {CAT_ICON[expense.category] || '📦'}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <p style={{ fontWeight: 600, fontSize: '14px', color: '#0f172a', marginBottom: '1px' }}>{expense.category}</p>
+                                  <p style={{ fontSize: '12px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {expense.description || '—'} · {expense.date}
+                                  </p>
+                                </div>
+                                <p style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a', flexShrink: 0 }}>₹{expense.amount.toFixed(2)}</p>
                               </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ fontWeight: 600, fontSize: '14px', color: '#0f172a', marginBottom: '1px' }}>{expense.category}</p>
-                                <p style={{ fontSize: '12px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {expense.description || '—'} · {expense.date}
-                                </p>
-                              </div>
-                              <p style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a', flexShrink: 0 }}>₹{expense.amount.toFixed(2)}</p>
-                              <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                              {/* Bottom row: action buttons */}
+                              <div className="expense-actions" style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
                                 <button onClick={() => handleEditExpense(expense)}
                                   className={btnClass('ghost')}
-                                  style={btn('#eef2ff', '#6366f1', { padding: '4px 10px', fontSize: '12px' })}>
+                                  style={btn('#eef2ff', '#6366f1', { padding: '4px 12px', fontSize: '12px', flex: 1 })}>
                                   Edit
                                 </button>
                                 <button
                                   onClick={() => setConfirmDeleteId(confirmDeleteId === expense.id ? null : expense.id)}
                                   className={btnClass('danger')}
-                                  style={btn('#fef2f2', '#ef4444', { padding: '4px 10px', fontSize: '12px' })}>
+                                  style={btn('#fef2f2', '#ef4444', { padding: '4px 12px', fontSize: '12px', flex: 1 })}>
                                   Delete
                                 </button>
                               </div>
