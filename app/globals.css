@@ -566,6 +566,9 @@ html { -webkit-text-size-adjust: 100%; }
   max-width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  height: 38px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 .filter-add-btn {
   white-space: nowrap;
