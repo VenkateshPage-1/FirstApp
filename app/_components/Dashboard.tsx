@@ -377,7 +377,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   }
 
   return (
-    <div className="fade-in" style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif' }}>
+    <div className="fade-in" style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif', overflowX: 'hidden', width: '100%' }}>
 
       {/* Inactivity banner */}
       {showInactivityWarning && (
@@ -435,7 +435,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         </div>
       </nav>
 
-      <div className="dash-content dash-scroll-area" style={{ maxWidth: '1280px', margin: '0 auto' }}>
+      <div className="dash-content dash-scroll-area" style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
 
         {/* ── EXPENSES TAB ── */}
         {tab === 'expenses' && (
