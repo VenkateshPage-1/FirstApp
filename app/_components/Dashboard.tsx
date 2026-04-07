@@ -740,25 +740,28 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           const disposableIncome = Math.max(0, income - totalEMI)
           const isSetup = income > 0
 
-          // EMI-aware calculations (use disposable income for ratios)
-          const variableSpend = Math.max(0, totalThisMonth - totalEMI)
-          const savings = Math.max(0, disposableIncome - variableSpend)
-          const savingsRate = disposableIncome > 0 ? (savings / disposableIncome) * 100 : 0
+          // EMI-aware calculations
+          // totalThisMonth = all expenses logged (may or may not include EMI as expense)
+          // disposableIncome = income - EMI (EMI is a fixed liability, not discretionary)
+          // savings = what's left of income after ALL spending (expenses + EMI if not in expenses)
+          // We do NOT subtract totalEMI from totalThisMonth — user should not log EMIs as expenses.
+          // If they do, it's their actual spend and is correctly penalised.
+          const savings = Math.max(0, income - totalThisMonth - totalEMI)
+          const savingsRate = income > 0 ? (savings / income) * 100 : 0
           const needsTotal = expenses.filter(e => NEEDS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
           const wantsTotal = expenses.filter(e => WANTS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
           const needsPct = disposableIncome > 0 ? (needsTotal / disposableIncome) * 100 : 0
           const wantsPct = disposableIncome > 0 ? (wantsTotal / disposableIncome) * 100 : 0
-          const savingsPct = disposableIncome > 0 ? (savings / disposableIncome) * 100 : 0
+          const savingsPct = income > 0 ? (savings / income) * 100 : 0
           const emiPct = income > 0 ? (totalEMI / income) * 100 : 0
 
-          // Month-end forecast (variable spend only, EMI is fixed)
+          // Month-end forecast
           const daysInMonth = new Date(filterYear, filterMonthNum, 0).getDate()
           const dayOfMonth = filterMonth === new Date().toISOString().slice(0,7)
             ? new Date().getDate() : daysInMonth
-          const dailyRate = dayOfMonth > 0 ? variableSpend / dayOfMonth : 0
+          const dailyRate = dayOfMonth > 0 ? totalThisMonth / dayOfMonth : 0
           const forecastVariable = dailyRate * daysInMonth
           const forecastTotal = forecastVariable + totalEMI
-          const forecastSavings = income > 0 ? Math.max(0, income - forecastTotal) : 0
 
           // Payment split
           const paymentTotals = PAYMENT_METHODS.reduce<Record<string,number>>((acc, m) => {
@@ -1090,7 +1093,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                       <div style={{ height: '100%', width: `${Math.min(savingsRate, 100)}%`, background: savingsRate >= savingsGoal ? '#10b981' : '#f59e0b', borderRadius: '3px', transition: 'width 0.8s ease' }} />
                       <div style={{ position: 'absolute', top: 0, left: `${savingsGoal}%`, width: '2px', height: '100%', background: '#6366f1' }} />
                     </div>
-                    <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Buffett rule: save before you spend, not after</p>
+                    <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Formula: (Income − Expenses − EMI) ÷ Income · Don't log EMIs as expenses</p>
                   </div>
                 </div>
 
