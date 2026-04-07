@@ -467,13 +467,14 @@ html { -webkit-text-size-adjust: 100%; }
 
 /* ── Auth card on small screens ── */
 @media (max-width: 480px) {
+  .auth-bg { padding: 16px; }
   .auth-card {
     padding: 32px 22px;
-    border-radius: 16px;
+    border-radius: 20px;
+    max-width: 100%;
+    width: 100%;
   }
   .auth-card h1 { font-size: 22px; }
-  .auth-bg { padding: 16px; align-items: flex-end; }
-  .auth-card { border-radius: 20px 20px 0 0; max-width: 100%; }
 }
 
 /* ── Dashboard on tablet / mobile ── */

@@ -46,6 +46,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [showInactivityWarning, setShowInactivityWarning] = useState(false)
 
   const [initialLoading, setInitialLoading] = useState(true)
+  const [signingOut, setSigningOut] = useState(false)
   const expensesReady = useRef(false)
   const profileReady = useRef(false)
 
@@ -74,6 +75,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const handleLogout = useCallback(async () => {
     if (isLoggingOut.current) return
     isLoggingOut.current = true
+    setSigningOut(true)
     await fetch('/api/auth/logout', { method: 'POST' })
     onLogout()
   }, [onLogout])
@@ -334,15 +336,16 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   if (byCategory.length >= 4) insights.push({ text: `Spending spread across ${byCategory.length} categories`, color: '#8b5cf6' })
   if (avgPerDay > 0) insights.push({ text: `Daily average this month: ₹${avgPerDay.toFixed(2)}`, color: '#06b6d4' })
 
-  if (initialLoading) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', fontFamily: 'var(--font-inter),sans-serif' }}>
-        <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid #e0e7ff', borderTopColor: '#6366f1', animation: 'spin 0.7s linear infinite' }} />
-        <p style={{ fontSize: '13px', fontWeight: 500, color: '#94a3b8', letterSpacing: '0.02em' }}>Loading your dashboard…</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )
-  }
+  const centeredSpinner = (label: string) => (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', fontFamily: 'var(--font-inter),sans-serif' }}>
+      <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid #e0e7ff', borderTopColor: '#6366f1', animation: 'spin 0.7s linear infinite' }} />
+      <p style={{ fontSize: '13px', fontWeight: 500, color: '#94a3b8', letterSpacing: '0.02em' }}>{label}</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+
+  if (signingOut) return centeredSpinner('Signing out…')
+  if (initialLoading) return centeredSpinner('Loading your dashboard…')
 
   const card = (extra?: React.CSSProperties): React.CSSProperties => ({
     background: 'white', borderRadius: '16px', padding: '20px 24px',
