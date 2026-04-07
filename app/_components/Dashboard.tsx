@@ -138,7 +138,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         key: data.key_id,
         amount: data.amount,
         currency: data.currency,
-        name: 'SpendWise',
+        name: 'TrackPenny',
         description: data.label,
         order_id: data.order_id,
         handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
@@ -475,7 +475,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
       {/* Sticky nav */}
       <nav className="dash-nav" style={{ background: 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <span style={{ fontWeight: 800, fontSize: '17px', color: '#6366f1', letterSpacing: '-0.5px' }}>SpendWise</span>
+          <span style={{ fontWeight: 800, fontSize: '17px', color: '#6366f1', letterSpacing: '-0.5px' }}>TrackPenny</span>
           <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
             {(['expenses', 'analytics', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
@@ -806,7 +806,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 {/* Hero */}
                 <div style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: '16px', padding: '32px 28px', textAlign: 'center', marginBottom: '20px' }}>
                   <div style={{ fontSize: '44px', marginBottom: '12px' }}>📊</div>
-                  <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>SpendWise Premium</h2>
+                  <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>TrackPenny Premium</h2>
                   <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>
                     Financial Health Score · 50/30/20 Tracker · EMI Impact · Budget Alerts · Month-end Forecast
                   </p>

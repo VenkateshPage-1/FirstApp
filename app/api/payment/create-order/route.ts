@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 import { getAuthenticatedUserId } from '@/lib/get-user-id'
 
 const PLANS = {
-  quarterly: { amount: 9900, label: 'SpendWise Quarterly' },  // ₹99
-  annual:    { amount: 29900, label: 'SpendWise Annual' },     // ₹299
+  quarterly: { amount: 9900, label: 'TrackPenny Quarterly' },  // ₹99
+  annual:    { amount: 29900, label: 'TrackPenny Annual' },     // ₹299
 }
 
 export async function POST(request: NextRequest) {

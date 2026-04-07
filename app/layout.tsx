@@ -14,11 +14,11 @@ export const viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "SpendWise",
+  title: "TrackPenny",
   description: "Track your daily expenses",
   icons: { icon: '/favicon.ico' },
   openGraph: {
-    title: "SpendWise",
+    title: "TrackPenny",
     description: "Track your daily expenses",
     type: "website",
   },
