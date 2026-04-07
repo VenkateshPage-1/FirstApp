@@ -334,69 +334,12 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   if (byCategory.length >= 4) insights.push({ text: `Spending spread across ${byCategory.length} categories`, color: '#8b5cf6' })
   if (avgPerDay > 0) insights.push({ text: `Daily average this month: ₹${avgPerDay.toFixed(2)}`, color: '#06b6d4' })
 
-  // Style helpers
-  const sk = (w: string, h: string, r = '8px'): React.CSSProperties => ({
-    width: w, height: h, borderRadius: r,
-    background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)',
-    backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite',
-  })
-
   if (initialLoading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter),sans-serif' }}>
-        {/* Nav skeleton */}
-        <div className="dash-nav" style={{ background: 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div style={sk('100px', '20px', '6px')} />
-            <div style={sk('160px', '28px', '8px')} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={sk('30px', '30px', '50%')} />
-            <div style={sk('70px', '16px', '6px')} />
-            <div style={sk('72px', '30px', '8px')} />
-          </div>
-        </div>
-
-        <div className="dash-content" style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          {/* Summary cards skeleton */}
-          <div className="dash-summary">
-            {[1, 2, 3].map(i => (
-              <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', border: '1px solid #f1f5f9' }}>
-                <div style={sk('60px', '11px', '4px')} />
-                <div style={{ ...sk('120px', '32px', '6px'), marginTop: '10px' }} />
-                <div style={{ ...sk('36px', '3px', '2px'), marginTop: '16px' }} />
-              </div>
-            ))}
-          </div>
-
-          <div className="dash-grid">
-            {/* Left column skeleton */}
-            <div>
-              <div style={{ background: 'white', borderRadius: '16px', padding: '14px 18px', border: '1px solid #f1f5f9', marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <div style={sk('120px', '34px')} />
-                <div style={sk('120px', '34px')} />
-                <div style={{ ...sk('110px', '34px'), marginLeft: 'auto' }} />
-              </div>
-              <div style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', border: '1px solid #f1f5f9' }}>
-                <div style={{ ...sk('80px', '11px', '4px'), marginBottom: '14px' }} />
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} style={{ ...sk('100%', '58px', '10px'), marginBottom: '7px' }} />
-                ))}
-              </div>
-            </div>
-
-            {/* Right column skeleton */}
-            <div>
-              {[130, 110, 100].map((h, i) => (
-                <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', border: '1px solid #f1f5f9', marginBottom: '14px' }}>
-                  <div style={{ ...sk('70px', '11px', '4px'), marginBottom: '14px' }} />
-                  <div style={sk('100%', `${h}px`, '8px')} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+      <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', fontFamily: 'var(--font-inter),sans-serif' }}>
+        <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid #e0e7ff', borderTopColor: '#6366f1', animation: 'spin 0.7s linear infinite' }} />
+        <p style={{ fontSize: '13px', fontWeight: 500, color: '#94a3b8', letterSpacing: '0.02em' }}>Loading your dashboard…</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
@@ -428,7 +371,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif' }}>
+    <div className="fade-in" style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif' }}>
 
       {/* Inactivity banner */}
       {showInactivityWarning && (
