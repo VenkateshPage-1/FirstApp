@@ -464,25 +464,23 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
               {/* LEFT */}
               <div>
                 {/* Filter bar + add button */}
-                <div style={card({ padding: '14px 18px' })}>
+                <div style={card({ padding: '14px 18px', overflow: 'hidden' })}>
                   <div className="filter-bar">
-                    <div className="filter-fields">
-                      <div>
-                        <p style={lbl}>Month</p>
-                        <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, width: '100%' }} />
-                      </div>
-                      <div>
-                        <p style={lbl}>Category</p>
-                        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...inp, width: '100%' }}>
-                          <option>All</option>
-                          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                        </select>
-                      </div>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                      <p style={lbl}>Month</p>
+                      <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, display: 'block', width: '100%', maxWidth: '100%' }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                      <p style={lbl}>Category</p>
+                      <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...inp, display: 'block', width: '100%', maxWidth: '100%' }}>
+                        <option>All</option>
+                        {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                      </select>
                     </div>
                     <button
                       onClick={() => { setShowAddForm(v => !v); setEditingExpense(null); setForm(emptyForm); setConfirmDeleteId(null) }}
-                      className={btnClass('primary')}
-                      style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '10px 16px', borderRadius: '9px', width: '100%' })}>
+                      className={`filter-add-btn ${btnClass('primary')}`}
+                      style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '10px 16px', borderRadius: '9px', flexShrink: 0 })}>
                       {showAddForm ? '✕ Cancel' : '+ Add expense'}
                     </button>
                   </div>

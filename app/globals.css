@@ -555,44 +555,29 @@ html { -webkit-text-size-adjust: 100%; }
 
 /* ── Filter bar ── */
 .filter-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
   align-items: flex-end;
-  gap: 10px;
 }
-.filter-fields {
-  display: flex;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-.filter-fields > div {
-  flex: 1;
-  min-width: 0;
-}
-.filter-fields input,
-.filter-fields select {
+.filter-bar input,
+.filter-bar select {
   width: 100%;
-  min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
-.filter-bar > button {
-  width: auto !important;
-  flex-shrink: 0;
+.filter-add-btn {
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
   .filter-bar {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
   }
-  .filter-fields {
-    flex-direction: column;
-    gap: 12px;
-  }
-  .filter-fields > div {
-    width: 100%;
-  }
-  .filter-bar > button {
+  .filter-add-btn {
+    grid-column: 1 / -1;
     width: 100% !important;
     min-height: 46px;
   }
