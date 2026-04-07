@@ -467,14 +467,15 @@ html { -webkit-text-size-adjust: 100%; }
 
 /* ── Auth card on small screens ── */
 @media (max-width: 480px) {
-  .auth-bg { padding: 16px; }
+  .auth-bg { padding: 20px; }
   .auth-card {
-    padding: 32px 22px;
-    border-radius: 20px;
+    padding: 36px 24px;
+    border-radius: 24px;
     max-width: 100%;
     width: 100%;
   }
-  .auth-card h1 { font-size: 22px; }
+  .auth-card h1 { font-size: 24px; }
+  .auth-subtitle { margin-bottom: 24px; }
 }
 
 /* ── Dashboard on tablet / mobile ── */
@@ -486,23 +487,23 @@ html { -webkit-text-size-adjust: 100%; }
 
 @media (max-width: 640px) {
   .dash-nav {
-    padding: 0 14px;
+    padding: 0 16px;
     height: auto;
-    min-height: 56px;
+    min-height: 60px;
     flex-wrap: wrap;
     gap: 8px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   .dash-content {
-    padding: 14px 12px;
+    padding: 20px 16px 100px;
   }
 
   .dash-summary {
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
+    gap: 12px;
+    margin-bottom: 16px;
   }
 
   .dash-summary-card-last {
@@ -537,6 +538,36 @@ html { -webkit-text-size-adjust: 100%; }
 /* ── Utility ── */
 @media (max-width: 480px) {
   .hide-xs { display: none !important; }
+}
+
+/* ── Mobile card / input comfort ── */
+@media (max-width: 640px) {
+  /* Cards breathe more */
+  .mobile-card-padding {
+    padding: 18px 16px !important;
+  }
+
+  /* Inputs taller for easier tapping */
+  input, select, textarea {
+    font-size: 16px !important; /* prevents iOS zoom on focus */
+    min-height: 44px;
+  }
+
+  /* Buttons taller */
+  .btn-primary, button[type="submit"] {
+    min-height: 48px;
+    font-size: 15px !important;
+  }
+
+  /* More gap between form groups */
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  /* Summary card text bigger */
+  .dash-summary .summary-value {
+    font-size: 22px !important;
+  }
 }
 
 /* ── Expense row actions ── */
