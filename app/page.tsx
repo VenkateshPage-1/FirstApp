@@ -62,15 +62,7 @@ export default function Home() {
   }
 
   if (view === 'loading') {
-    return (
-      <div className="auth-bg">
-        <div className="auth-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {[60, 100, 100, 100].map((w, i) => (
-            <div key={i} className="skeleton" style={{ height: i === 0 ? '28px' : '44px', width: `${w}%` }} />
-          ))}
-        </div>
-      </div>
-    )
+    return <div className="auth-bg" />
   }
 
   const pageClass = exiting ? 'page-exit' : 'page-enter'
