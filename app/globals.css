@@ -460,6 +460,19 @@ html { -webkit-text-size-adjust: 100%; }
 .expense-form-grid {
   grid-template-columns: 1fr 1fr;
 }
+.expense-form-grid > div,
+.profile-form-grid > div {
+  min-width: 0;
+}
+.expense-form-grid input,
+.expense-form-grid select,
+.profile-form-grid input,
+.profile-form-grid select,
+.profile-form-grid textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 
 .profile-form-grid {
   grid-template-columns: 1fr 1fr;
@@ -550,8 +563,19 @@ html { -webkit-text-size-adjust: 100%; }
   display: flex;
   gap: 10px;
   flex: 1;
+  min-width: 0;
 }
-.filter-bar button {
+.filter-fields > div {
+  flex: 1;
+  min-width: 0;
+}
+.filter-fields input,
+.filter-fields select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.filter-bar > button {
   width: auto !important;
   flex-shrink: 0;
 }
@@ -565,7 +589,10 @@ html { -webkit-text-size-adjust: 100%; }
     flex-direction: column;
     gap: 12px;
   }
-  .filter-bar button {
+  .filter-fields > div {
+    width: 100%;
+  }
+  .filter-bar > button {
     width: 100% !important;
     min-height: 46px;
   }
@@ -576,6 +603,8 @@ html { -webkit-text-size-adjust: 100%; }
   /* Prevents iOS Safari from zooming in on input focus */
   input, select, textarea {
     font-size: 16px !important;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   /* More gap between form groups */
