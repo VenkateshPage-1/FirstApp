@@ -522,7 +522,27 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         </div>
                         <div>
                           <p style={lbl}>Date</p>
-                          <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={inp} required />
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {(() => {
+                              const [fy, fm, fd] = form.date.split('-').map(Number)
+                              const daysInMonth = new Date(fy, fm, 0).getDate()
+                              const setDatePart = (y: number, m: number, d: number) => {
+                                const clampedD = Math.min(d, new Date(y, m, 0).getDate())
+                                setForm(p => ({ ...p, date: `${y}-${String(m).padStart(2,'0')}-${String(clampedD).padStart(2,'0')}` }))
+                              }
+                              return <>
+                                <select value={fd} onChange={e => setDatePart(fy, fm, Number(e.target.value))} style={{ ...inp, flex: '0 0 58px' }}>
+                                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                                <select value={fm} onChange={e => setDatePart(fy, Number(e.target.value), fd)} style={{ ...inp, flex: 1, minWidth: 0 }}>
+                                  {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+                                </select>
+                                <select value={fy} onChange={e => setDatePart(Number(e.target.value), fm, fd)} style={{ ...inp, flex: '0 0 70px' }}>
+                                  {Array.from({ length: 4 }, (_, i) => now.getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                              </>
+                            })()}
+                          </div>
                         </div>
                         <div>
                           <p style={lbl}>Description</p>
