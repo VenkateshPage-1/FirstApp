@@ -474,14 +474,14 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 <div style={card({ padding: '14px 18px', overflow: 'hidden' })}>
                   <div className="filter-bar">
                     <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                      <p style={lbl}>Month</p>
+                      <p style={lbl}>Month &amp; Year</p>
                       <div style={{ display: 'flex', gap: '4px' }}>
-                        <select value={filterMonthNum} onChange={e => setFilterMonthNum(Number(e.target.value))} style={{ ...inp, flex: 1, minWidth: 0 }}>
+                        <select value={filterMonthNum} onChange={e => setFilterMonthNum(Number(e.target.value))} style={{ ...inp, flex: '0 0 90px', minWidth: 0 }}>
                           {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
                             <option key={i} value={i + 1}>{m}</option>
                           ))}
                         </select>
-                        <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} style={{ ...inp, width: '72px', flexShrink: 0 }}>
+                        <select value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} style={{ ...inp, flex: 1, minWidth: 0 }}>
                           {Array.from({ length: 4 }, (_, i) => now.getFullYear() - i).map(y => (
                             <option key={y} value={y}>{y}</option>
                           ))}
