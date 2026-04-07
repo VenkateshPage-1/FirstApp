@@ -1090,304 +1090,317 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           }
 
           // ── ANALYTICS DASHBOARD ──
+          const fmt = (n: number) => n >= 100000 ? `₹${(n/100000).toFixed(1)}L` : n >= 1000 ? `₹${(n/1000).toFixed(1)}K` : `₹${Math.round(n)}`
+          const daysPct = Math.round((dayOfMonth / daysInMonth) * 100)
+          const scoreComponents = [
+            { label: 'Savings Rate', score: Math.round(savingsScore), max: 35, detail: `${savingsRate.toFixed(1)}% of ${savingsGoal}% goal`, color: '#10b981' },
+            { label: 'Budget Adherence', score: Math.round(budgetScore), max: 35, detail: budgetCats.length > 0 ? `${budgetCats.filter(c => expenses.filter(e=>e.category===c).reduce((s,e)=>s+e.amount,0) <= catBudgets[c]).length}/${budgetCats.length} cats on track` : 'No budgets set', color: '#6366f1' },
+            { label: 'Consistency', score: Math.round(consistencyScore), max: 15, detail: `${expenses.length} transactions`, color: '#8b5cf6' },
+            { label: 'EMI Health', score: emiHealthScore, max: 15, detail: `${emiPct.toFixed(0)}% of income`, color: '#f59e0b' },
+          ]
           return (
             <div>
-              {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              {/* ── HEADER ── */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0 }}>✨ Premium Analytics</h2>
-                  <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Based on ₹{income.toLocaleString('en-IN')}/mo income · ₹{totalEMI.toLocaleString('en-IN')}/mo EMI · ₹{disposableIncome.toLocaleString('en-IN')} disposable</p>
+                  <h2 style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', margin: '0 0 3px', letterSpacing: '-0.3px' }}>Premium Analytics</h2>
+                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    {new Date(filterYear, filterMonthNum - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · {expenses.length} transactions
+                  </p>
                 </div>
-                <button onClick={startEditing} style={{ background: '#eef2ff', color: '#6366f1', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button onClick={startEditing} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   ✏️ Edit Settings
                 </button>
               </div>
               {analyticsSuccess && <div className="alert-success fade-in" style={{ marginBottom: '14px' }}>{analyticsSuccess}</div>}
 
-              {/* Edit Settings Modal */}
+              {/* ── SUMMARY STRIP ── */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: '10px', marginBottom: '16px' }}>
+                {[
+                  { label: 'Income', value: fmt(income), sub: 'monthly', color: '#6366f1', bg: '#eef2ff' },
+                  { label: 'Spent', value: fmt(totalThisMonth), sub: `${dayOfMonth} days`, color: '#ef4444', bg: '#fef2f2' },
+                  { label: 'Saved', value: fmt(savings), sub: `${savingsRate.toFixed(0)}% rate`, color: '#10b981', bg: '#f0fdf4' },
+                  { label: 'EMI', value: fmt(totalEMI), sub: `${emiPct.toFixed(0)}% of income`, color: '#f59e0b', bg: '#fffbeb' },
+                ].map(({ label, value, sub, color, bg }) => (
+                  <div key={label} style={{ background: bg, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${color}22` }}>
+                    <p style={{ fontSize: '11px', color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{label}</p>
+                    <p style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px', marginBottom: '2px' }}>{value}</p>
+                    <p style={{ fontSize: '11px', color: '#94a3b8' }}>{sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── EDIT SETTINGS PANEL ── */}
               {isEditingAnalytics && (
-                <div className="fade-in" style={card({ border: '2px solid #6366f1', padding: '20px 24px' })}>
-                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>✏️ Update Analytics Settings</h3>
-                  <div style={{ display: 'grid', gap: '14px', marginBottom: '16px' }}>
-                    <div>
-                      <p style={lbl}>Monthly Income (₹)</p>
-                      <input type="number" value={setupIncome} onChange={e => setSetupIncome(e.target.value)} style={inp} />
-                    </div>
-                    <div>
-                      <p style={lbl}>Savings Goal (%)</p>
-                      <input type="number" min="1" max="100" value={setupSavingsPct} onChange={e => setSetupSavingsPct(e.target.value)} style={inp} />
-                    </div>
+                <div className="fade-in" style={{ ...card({ border: '2px solid #6366f1', padding: '20px 24px' }), marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '16px' }}>Update Settings</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                    <div><p style={lbl}>Monthly Income (₹)</p><input type="number" value={setupIncome} onChange={e => setSetupIncome(e.target.value)} style={inp} /></div>
+                    <div><p style={lbl}>Savings Goal (%)</p><input type="number" min="1" max="100" value={setupSavingsPct} onChange={e => setSetupSavingsPct(e.target.value)} style={inp} /></div>
                   </div>
                   <p style={{ ...lbl, marginBottom: '10px' }}>EMIs</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                     {setupEmis.map((emi, i) => (
                       <div key={emi.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '10px 12px', background: '#f8fafc', borderRadius: '10px' }}>
                         <div style={{ flex: 1 }}>
-                          <input value={emi.name} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, name: e.target.value} : x))}
-                            placeholder="Loan name" style={{ ...inp, marginBottom: '6px', fontSize: '13px' }} />
+                          <input value={emi.name} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, name: e.target.value} : x))} placeholder="Loan name" style={{ ...inp, marginBottom: '6px', fontSize: '13px' }} />
                           <div style={{ display: 'flex', gap: '6px' }}>
-                            <input type="number" value={emi.amount || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, amount: Number(e.target.value)} : x))}
-                              placeholder="₹ EMI" style={{ ...inp, flex: 1, fontSize: '13px' }} />
-                            <input type="number" value={emi.months_remaining || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, months_remaining: Number(e.target.value)} : x))}
-                              placeholder="Months left" style={{ ...inp, flex: 1, fontSize: '13px' }} />
+                            <input type="number" value={emi.amount || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, amount: Number(e.target.value)} : x))} placeholder="₹ EMI" style={{ ...inp, flex: 1, fontSize: '13px' }} />
+                            <input type="number" value={emi.months_remaining || ''} onChange={e => setSetupEmis(prev => prev.map((x,j) => j===i ? {...x, months_remaining: Number(e.target.value)} : x))} placeholder="Months left" style={{ ...inp, flex: 1, fontSize: '13px' }} />
                           </div>
                         </div>
-                        <button onClick={() => setSetupEmis(prev => prev.filter((_,j) => j!==i))}
-                          style={{ background: '#fef2f2', color: '#ef4444', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>✕</button>
+                        <button onClick={() => setSetupEmis(prev => prev.filter((_,j) => j!==i))} style={{ background: '#fef2f2', color: '#ef4444', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>✕</button>
                       </div>
                     ))}
-                    <button onClick={() => setSetupEmis(prev => [...prev, { id: Date.now().toString(), name: '', amount: 0, months_remaining: 0 }])}
-                      style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px dashed #c7d2fe', borderRadius: '10px', padding: '9px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add EMI</button>
+                    <button onClick={() => setSetupEmis(prev => [...prev, { id: Date.now().toString(), name: '', amount: 0, months_remaining: 0 }])} style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px dashed #c7d2fe', borderRadius: '10px', padding: '9px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add EMI</button>
                   </div>
                   <p style={{ ...lbl, marginBottom: '10px' }}>Category Budgets (₹/month)</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
                     {CATEGORIES.map(cat => (
-                      <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '16px', width: '22px' }}>{CAT_ICON[cat]}</span>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', width: '100px' }}>{cat}</span>
-                        <input type="number" min="0" value={setupBudgets[cat] ?? ''} onChange={e => setSetupBudgets(p => ({ ...p, [cat]: e.target.value }))}
-                          placeholder="₹ limit" style={{ ...inp, flex: 1 }} />
+                      <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>{CAT_ICON[cat]}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155', width: '72px', flexShrink: 0 }}>{cat}</span>
+                        <input type="number" min="0" value={setupBudgets[cat] ?? ''} onChange={e => setSetupBudgets(p => ({ ...p, [cat]: e.target.value }))} placeholder="₹ limit" style={{ ...inp, flex: 1 }} />
                       </div>
                     ))}
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={() => setIsEditingAnalytics(false)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-                    <button onClick={handleSaveAnalyticsEdit} disabled={isSavingAnalytics}
-                      style={{ flex: 2, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {isSavingAnalytics ? <span className="dot-loader"><span/><span/><span/></span> : '💾 Save & Re-run Analytics'}
+                    <button onClick={handleSaveAnalyticsEdit} disabled={isSavingAnalytics} style={{ flex: 2, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {isSavingAnalytics ? <span className="dot-loader"><span/><span/><span/></span> : '💾 Save & Re-run'}
                     </button>
                   </div>
                 </div>
               )}
 
               <div className="dash-grid">
-                {/* LEFT COLUMN */}
+                {/* ── LEFT COLUMN ── */}
                 <div>
+
                   {/* Financial Health Score */}
-                  <div style={card({ textAlign: 'center', padding: '28px 24px' })}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                      <p style={lbl}>Financial Health Score</p>
-                      <div style={{ position: 'relative', display: 'inline-block' }}
-                        onMouseEnter={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'block' }}
-                        onMouseLeave={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'none' }}>
-                        <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#e2e8f0', color: '#64748b', fontSize: '10px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', marginBottom: '3px' }}>?</span>
-                        <div className="score-tooltip" style={{ display: 'none', position: 'absolute', top: '0', left: '22px', width: '260px', background: '#1e293b', color: 'white', borderRadius: '12px', padding: '14px 16px', fontSize: '12px', lineHeight: 1.7, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', textAlign: 'left' }}>
-                          <p style={{ fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>How it's calculated (out of 100)</p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ color: '#94a3b8' }}>💰 Savings Rate</span>
-                            <span style={{ color: scoreColor, fontWeight: 600 }}>{Math.round(savingsScore)}/35</span>
-                          </div>
-                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '8px' }}>
-                            ({savingsRate.toFixed(1)}% saved ÷ {savingsGoal}% goal) × 35
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ color: '#94a3b8' }}>📦 Budget Adherence</span>
-                            <span style={{ color: scoreColor, fontWeight: 600 }}>{Math.round(budgetScore)}/35</span>
-                          </div>
-                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '8px' }}>
-                            {budgetCats.length > 0 ? `${budgetCats.filter(c => expenses.filter(e => e.category===c).reduce((s,e)=>s+e.amount,0) <= catBudgets[c]).length} of ${budgetCats.length} categories within budget` : 'No budgets set (neutral 17pts)'}
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ color: '#94a3b8' }}>📝 Consistency</span>
-                            <span style={{ color: scoreColor, fontWeight: 600 }}>{Math.round(consistencyScore)}/15</span>
-                          </div>
-                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '8px' }}>
-                            {expenses.length} transactions logged this month
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ color: '#94a3b8' }}>🏦 EMI Health</span>
-                            <span style={{ color: scoreColor, fontWeight: 600 }}>{emiHealthScore}/15</span>
-                          </div>
-                          <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '10px' }}>
-                            EMI = {emiPct.toFixed(0)}% of income {emiPct <= 30 ? '(healthy ≤30%)' : emiPct <= 40 ? '(watch out 31–40%)' : '(danger >40%)'}
-                          </p>
-                          <div style={{ borderTop: '1px solid #334155', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Total</span>
-                            <span style={{ color: scoreColor, fontWeight: 700 }}>{healthScore}/100 · {scoreLabel}</span>
-                          </div>
-                          {/* Arrow */}
-                          <div style={{ position: 'absolute', top: '8px', left: '-6px', width: '12px', height: '12px', background: '#1e293b', borderRadius: '2px', rotate: '45deg' }} />
-                        </div>
+                  <div style={card({ padding: '24px' })}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                      <div>
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>Financial Health</p>
+                        <p style={{ fontSize: '28px', fontWeight: 900, color: scoreColor, letterSpacing: '-1px', lineHeight: 1 }}>{healthScore}<span style={{ fontSize: '14px', fontWeight: 500, color: '#94a3b8' }}>/100</span></p>
+                        <span style={{ display: 'inline-block', marginTop: '4px', background: healthScore >= 70 ? '#f0fdf4' : healthScore >= 40 ? '#fffbeb' : '#fef2f2', color: scoreColor, fontSize: '11px', fontWeight: 700, padding: '2px 10px', borderRadius: '20px' }}>{scoreLabel}</span>
                       </div>
-                    </div>
-                    <div style={{ position: 'relative', width: '120px', height: '120px', margin: '16px auto' }}>
-                      <svg viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
-                        <circle cx="60" cy="60" r="50" fill="none" stroke="#f1f5f9" strokeWidth="10" />
-                        <circle cx="60" cy="60" r="50" fill="none" stroke={scoreColor} strokeWidth="10"
-                          strokeDasharray={`${(healthScore / 100) * 314} 314`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
+                      <svg viewBox="0 0 80 80" width="80" height="80" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+                        <circle cx="40" cy="40" r="32" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                        <circle cx="40" cy="40" r="32" fill="none" stroke={scoreColor} strokeWidth="8"
+                          strokeDasharray={`${(healthScore / 100) * 201} 201`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
                       </svg>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '28px', fontWeight: 800, color: scoreColor }}>{healthScore}</span>
-                        <span style={{ fontSize: '11px', color: scoreColor, fontWeight: 600 }}>{scoreLabel}</span>
+                    </div>
+                    {/* Score breakdown bars */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {scoreComponents.map(({ label, score, max, detail, color }) => (
+                        <div key={label}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>{label}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color }}>{score}<span style={{ color: '#cbd5e1', fontWeight: 400 }}>/{max}</span></span>
+                          </div>
+                          <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${(score / max) * 100}%`, background: color, borderRadius: '3px', transition: 'width 1s ease' }} />
+                          </div>
+                          <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>{detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Savings Rate */}
+                  <div style={card({ padding: '20px 24px' })}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                      <div>
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Savings Rate</p>
+                        <p style={{ fontSize: '32px', fontWeight: 900, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444', letterSpacing: '-1.5px', lineHeight: 1 }}>{savingsRate.toFixed(1)}<span style={{ fontSize: '16px' }}>%</span></p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{fmt(savings)} saved · goal {savingsGoal}%</p>
+                      </div>
+                      <div style={{ padding: '5px 12px', borderRadius: '20px', background: savingsRate >= savingsGoal ? '#f0fdf4' : '#fef2f2', fontSize: '12px', fontWeight: 700, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444', flexShrink: 0 }}>
+                        {savingsRate >= savingsGoal ? '✓ On track' : '↑ Below goal'}
                       </div>
                     </div>
-                    <p style={{ fontSize: '12px', color: '#94a3b8' }}>Hover <strong>?</strong> above for breakdown</p>
+                    <div style={{ position: 'relative', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
+                      <div style={{ height: '100%', width: `${Math.min(savingsRate, 100)}%`, background: `linear-gradient(90deg, ${savingsRate >= savingsGoal ? '#10b981' : '#f59e0b'}, ${savingsRate >= savingsGoal ? '#34d399' : '#fbbf24'})`, borderRadius: '4px', transition: 'width 0.8s ease' }} />
+                      <div style={{ position: 'absolute', top: 0, left: `${Math.min(savingsGoal, 98)}%`, width: '2px', height: '100%', background: '#6366f1' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8' }}>
+                      <span>0%</span><span style={{ color: '#6366f1' }}>Goal: {savingsGoal}%</span><span>100%</span>
+                    </div>
                   </div>
 
                   {/* 50/30/20 Rule */}
-                  <div style={card()}>
+                  <div style={card({ padding: '20px 24px' })}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <p style={lbl}>50 / 30 / 20 Rule</p>
-                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>Elizabeth Warren</span>
+                      <div>
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>50 / 30 / 20 Rule</p>
+                        <p style={{ fontSize: '11px', color: '#cbd5e1' }}>Elizabeth Warren framework</p>
+                      </div>
+                    </div>
+                    {/* Stacked bar */}
+                    <div style={{ display: 'flex', height: '10px', borderRadius: '5px', overflow: 'hidden', marginBottom: '16px', gap: '2px' }}>
+                      <div style={{ flex: needsPct, background: '#6366f1', minWidth: needsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
+                      <div style={{ flex: wantsPct, background: '#8b5cf6', minWidth: wantsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
+                      <div style={{ flex: Math.max(savingsPct, 0), background: '#10b981', minWidth: savingsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
                     </div>
                     {[
-                      { label: 'Needs', desc: 'Food, Bills, Health', actual: needsPct, target: 50, amount: needsTotal, color: '#6366f1' },
-                      { label: 'Wants', desc: 'Shopping, Entertainment…', actual: wantsPct, target: 30, amount: wantsTotal, color: '#8b5cf6' },
+                      { label: 'Needs', desc: 'Food · Bills · Health', actual: needsPct, target: 50, amount: needsTotal, color: '#6366f1' },
+                      { label: 'Wants', desc: 'Shopping · Entertainment', actual: wantsPct, target: 30, amount: wantsTotal, color: '#8b5cf6' },
                       { label: 'Savings', desc: 'What you keep', actual: savingsPct, target: 20, amount: savings, color: '#10b981' },
                     ].map(({ label, desc, actual, target, amount, color }) => (
-                      <div key={label} style={{ marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0 }} />
                           <div>
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{label}</span>
-                            <span style={{ fontSize: '11px', color: '#cbd5e1', marginLeft: '6px' }}>{desc}</span>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: actual > target + 5 ? '#ef4444' : color }}>{actual.toFixed(0)}%</span>
-                            <span style={{ fontSize: '11px', color: '#cbd5e1', marginLeft: '4px' }}>/ {target}%</span>
+                            <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{label}</p>
+                            <p style={{ fontSize: '10px', color: '#94a3b8' }}>{desc}</p>
                           </div>
                         </div>
-                        <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
-                          <div style={{ height: '100%', width: `${Math.min(actual, 100)}%`, background: actual > target + 5 ? '#ef4444' : color, borderRadius: '3px', transition: 'width 0.8s ease' }} />
-                          <div style={{ position: 'absolute', top: 0, left: `${target}%`, width: '2px', height: '100%', background: '#94a3b8' }} />
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: '13px', fontWeight: 700, color: actual > target + 5 ? '#ef4444' : color }}>{actual.toFixed(0)}%</p>
+                          <p style={{ fontSize: '10px', color: '#94a3b8' }}>target {target}% · {fmt(amount)}</p>
                         </div>
-                        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>₹{amount.toFixed(0)}</p>
                       </div>
                     ))}
                   </div>
 
-                  {/* Savings Rate */}
-                  <div style={card()}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <div>
-                        <p style={lbl}>Savings Rate</p>
-                        <p style={{ fontSize: '28px', fontWeight: 800, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444', letterSpacing: '-1px' }}>{savingsRate.toFixed(1)}%</p>
-                        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Goal: {savingsGoal}% · ₹{savings.toFixed(0)} saved</p>
-                      </div>
-                      <div style={{ padding: '6px 12px', borderRadius: '20px', background: savingsRate >= savingsGoal ? '#f0fdf4' : '#fef2f2', fontSize: '12px', fontWeight: 600, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444' }}>
-                        {savingsRate >= savingsGoal ? '✓ On track' : '↑ Needs attention'}
-                      </div>
-                    </div>
-                    <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ height: '100%', width: `${Math.min(savingsRate, 100)}%`, background: savingsRate >= savingsGoal ? '#10b981' : '#f59e0b', borderRadius: '3px', transition: 'width 0.8s ease' }} />
-                      <div style={{ position: 'absolute', top: 0, left: `${savingsGoal}%`, width: '2px', height: '100%', background: '#6366f1' }} />
-                    </div>
-                    <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Formula: (Income − Expenses − EMI) ÷ Income · Don't log EMIs as expenses</p>
-                  </div>
                 </div>
 
-                {/* RIGHT COLUMN */}
+                {/* ── RIGHT COLUMN ── */}
                 <div>
+
                   {/* Month-end Forecast */}
-                  <div style={card()}>
-                    <p style={{ ...lbl, marginBottom: '12px' }}>Month-end Forecast</p>
-                    <p style={{ fontSize: '22px', fontWeight: 800, color: forecastTotal > income ? '#ef4444' : '#0f172a', letterSpacing: '-0.5px' }}>₹{forecastTotal.toFixed(0)}</p>
-                    <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
-                      Variable: ₹{forecastVariable.toFixed(0)} (₹{dailyRate.toFixed(0)}/day) + EMI: ₹{totalEMI.toLocaleString('en-IN')}
-                    </p>
+                  <div style={card({ padding: '20px 24px' })}>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>Month-end Forecast</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px' }}>
+                      <div>
+                        <p style={{ fontSize: '28px', fontWeight: 900, color: forecastTotal > income ? '#ef4444' : '#0f172a', letterSpacing: '-1px', lineHeight: 1 }}>{fmt(forecastTotal)}</p>
+                        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>Variable {fmt(forecastVariable)} + EMI {fmt(totalEMI)}</p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Day {dayOfMonth}/{daysInMonth}</p>
+                        <p style={{ fontSize: '11px', color: '#94a3b8' }}>{fmt(dailyRate)}/day avg</p>
+                      </div>
+                    </div>
+                    {/* Timeline bar */}
+                    <div style={{ position: 'relative', height: '6px', background: '#f1f5f9', borderRadius: '3px', marginBottom: '8px', overflow: 'visible' }}>
+                      <div style={{ height: '100%', width: `${daysPct}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                      <div style={{ position: 'absolute', top: '-3px', left: `${daysPct}%`, width: '12px', height: '12px', borderRadius: '50%', background: '#6366f1', border: '2px solid white', boxShadow: '0 1px 4px rgba(99,102,241,0.4)', transform: 'translateX(-50%)', transition: 'left 0.8s ease' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '12px' }}>
+                      <span>1st</span><span>Today</span><span>Month end</span>
+                    </div>
                     {income > 0 && (
-                      <div style={{ padding: '10px 12px', borderRadius: '8px', background: forecastTotal > income ? '#fef2f2' : '#f0fdf4', fontSize: '12px', color: forecastTotal > income ? '#b91c1c' : '#065f46', fontWeight: 500 }}>
+                      <div style={{ padding: '10px 14px', borderRadius: '10px', background: forecastTotal > income ? '#fef2f2' : '#f0fdf4', fontSize: '13px', color: forecastTotal > income ? '#b91c1c' : '#065f46', fontWeight: 600 }}>
                         {forecastTotal > income
-                          ? `⚠️ You'll overspend by ₹${(forecastTotal - income).toFixed(0)} this month`
-                          : `✅ Projected savings: ₹${(income - forecastTotal).toFixed(0)}`}
+                          ? `⚠️ Overspend by ${fmt(forecastTotal - income)}`
+                          : `✅ Projected savings: ${fmt(income - forecastTotal)}`}
                       </div>
                     )}
                   </div>
 
                   {/* Budget vs Actual */}
                   {Object.keys(catBudgets).length > 0 && (
-                    <div style={card()}>
-                      <p style={{ ...lbl, marginBottom: '14px' }}>Budget vs Actual</p>
+                    <div style={card({ padding: '20px 24px' })}>
+                      <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>Budget vs Actual</p>
                       {CATEGORIES.filter(c => catBudgets[c] > 0).map(cat => {
                         const spent = expenses.filter(e => e.category === cat).reduce((s,e) => s + e.amount, 0)
                         const budget = catBudgets[cat]
-                        const pct = (spent / budget) * 100
-                        const status = pct > 100 ? '#ef4444' : pct > 80 ? '#f59e0b' : '#10b981'
+                        const pct = Math.min((spent / budget) * 100, 100)
+                        const over = spent > budget
+                        const warn = pct > 80 && !over
+                        const statusColor = over ? '#ef4444' : warn ? '#f59e0b' : '#10b981'
                         return (
                           <div key={cat} style={{ marginBottom: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                               <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{CAT_ICON[cat]} {cat}</span>
-                              <span style={{ fontSize: '12px', color: status, fontWeight: 600 }}>₹{spent.toFixed(0)} / ₹{budget}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>{fmt(spent)} / {fmt(budget)}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '10px', background: over ? '#fef2f2' : warn ? '#fffbeb' : '#f0fdf4', color: statusColor }}>
+                                  {over ? `+${fmt(spent - budget)}` : `${fmt(budget - spent)} left`}
+                                </span>
+                              </div>
                             </div>
-                            <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: status, borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                            <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: statusColor, borderRadius: '3px', transition: 'width 0.8s ease' }} />
                             </div>
-                            <p style={{ fontSize: '10px', color: status, marginTop: '2px', fontWeight: 500 }}>
-                              {pct > 100 ? `Over by ₹${(spent - budget).toFixed(0)}` : `₹${(budget - spent).toFixed(0)} remaining`}
-                            </p>
                           </div>
                         )
                       })}
                     </div>
                   )}
 
-                  {/* EMI breakdown */}
+                  {/* EMI Tracker */}
                   {emis.length > 0 && (
-                    <div style={card()}>
+                    <div style={card({ padding: '20px 24px' })}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                        <p style={lbl}>EMI Tracker</p>
-                        <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: emiPct > 40 ? '#fef2f2' : emiPct > 30 ? '#fffbeb' : '#f0fdf4', color: emiPct > 40 ? '#ef4444' : emiPct > 30 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>EMI Tracker</p>
+                        <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '12px', background: emiPct > 40 ? '#fef2f2' : emiPct > 30 ? '#fffbeb' : '#f0fdf4', color: emiPct > 40 ? '#ef4444' : emiPct > 30 ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
                           {emiPct.toFixed(0)}% of income
                         </span>
                       </div>
                       {emis.map(emi => {
                         const debtFreeDate = new Date()
                         debtFreeDate.setMonth(debtFreeDate.getMonth() + emi.months_remaining)
+                        const totalMonths = 240
+                        const progressPct = Math.max(5, 100 - (emi.months_remaining / totalMonths) * 100)
                         return (
-                          <div key={emi.id} style={{ marginBottom: '14px', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>🏦 {emi.name}</span>
-                              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>₹{emi.amount.toLocaleString('en-IN')}/mo</span>
+                          <div key={emi.id} style={{ marginBottom: '12px', padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                              <div>
+                                <p style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>🏦 {emi.name}</p>
+                                <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>{emi.months_remaining} months · free {debtFreeDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
+                              </div>
+                              <p style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{fmt(emi.amount)}<span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>/mo</span></p>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
-                              <span>{emi.months_remaining} months remaining</span>
-                              <span>Debt-free: {debtFreeDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>
-                            </div>
-                            <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', marginTop: '8px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${Math.max(5, 100 - (emi.months_remaining / 240) * 100)}%`, background: '#6366f1', borderRadius: '2px' }} />
+                            <div style={{ height: '5px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: '3px' }} />
                             </div>
                           </div>
                         )
                       })}
-                      <div style={{ padding: '10px 12px', background: emiPct > 40 ? '#fef2f2' : '#f0fdf4', borderRadius: '8px', fontSize: '12px', color: emiPct > 40 ? '#b91c1c' : '#065f46', fontWeight: 500 }}>
-                        {emiPct > 40
-                          ? `⚠️ EMIs exceed 40% of income. High debt stress — consider prepayment.`
-                          : emiPct > 30
-                          ? `🟡 EMIs at ${emiPct.toFixed(0)}% of income. Manageable but watch expenses.`
-                          : `✅ EMI-to-income ratio is healthy (below 30%).`}
+                      <div style={{ padding: '10px 14px', background: emiPct > 40 ? '#fef2f2' : emiPct > 30 ? '#fffbeb' : '#f0fdf4', borderRadius: '10px', fontSize: '12px', color: emiPct > 40 ? '#b91c1c' : emiPct > 30 ? '#92400e' : '#065f46', fontWeight: 600 }}>
+                        {emiPct > 40 ? '⚠️ EMIs exceed 40% — high debt stress. Consider prepayment.' : emiPct > 30 ? `🟡 ${emiPct.toFixed(0)}% EMI load — manageable, watch spending.` : '✅ Healthy EMI ratio (below 30%)'}
                       </div>
                     </div>
                   )}
 
-                  {/* Payment method split */}
-                  <div style={card()}>
-                    <p style={{ ...lbl, marginBottom: '14px' }}>Payment Method Split</p>
-                    {PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).map(m => {
-                      const pct = totalThisMonth > 0 ? (paymentTotals[m] / totalThisMonth) * 100 : 0
-                      return (
-                        <div key={m} style={{ marginBottom: '10px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                            <span style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{PAYMENT_ICON[m]} {m}</span>
-                            <span style={{ fontSize: '12px', color: '#64748b' }}>₹{paymentTotals[m].toFixed(0)} · {pct.toFixed(0)}%</span>
-                          </div>
-                          <div style={{ height: '4px', background: '#f1f5f9', borderRadius: '2px', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: '#6366f1', borderRadius: '2px', transition: 'width 0.8s ease' }} />
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {totalThisMonth === 0 && <p style={{ fontSize: '13px', color: '#cbd5e1' }}>No expenses this month</p>}
-                  </div>
-
-                  {/* Key insight */}
-                  <div style={card({ background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1px solid #e0e7ff' })}>
-                    <p style={{ ...lbl, color: '#6366f1', marginBottom: '10px' }}>💡 Expert Tip</p>
-                    {savingsRate < savingsGoal && income > 0
-                      ? <p style={{ fontSize: '13px', color: '#4338ca', lineHeight: 1.6 }}>You need to cut ₹{(totalThisMonth - (income * (1 - savingsGoal/100))).toFixed(0)} more this month to hit your {savingsGoal}% savings goal. Start with your top spending category: <strong>{byCategory[0]?.cat ?? 'Food'}</strong>.</p>
-                      : savingsRate >= savingsGoal
-                      ? <p style={{ fontSize: '13px', color: '#065f46', lineHeight: 1.6 }}>Great discipline! You're on track with your savings goal. Consider moving surplus to an index fund or FD for your future self.</p>
-                      : <p style={{ fontSize: '13px', color: '#4338ca', lineHeight: 1.6 }}>Add your income above to get personalised savings insights and recommendations.</p>
+                  {/* Payment Method Split */}
+                  <div style={card({ padding: '20px 24px' })}>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>Payment Methods</p>
+                    {PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).length === 0
+                      ? <p style={{ fontSize: '13px', color: '#cbd5e1' }}>No expenses this month</p>
+                      : PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).map(m => {
+                          const pct = totalThisMonth > 0 ? (paymentTotals[m] / totalThisMonth) * 100 : 0
+                          return (
+                            <div key={m} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                              <span style={{ fontSize: '16px', width: '24px', textAlign: 'center', flexShrink: 0 }}>{PAYMENT_ICON[m]}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>{m}</span>
+                                  <span style={{ fontSize: '12px', color: '#64748b' }}>{fmt(paymentTotals[m])} · {pct.toFixed(0)}%</span>
+                                </div>
+                                <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, background: '#6366f1', borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
                     }
                   </div>
+
+                  {/* Smart Insight */}
+                  <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b)', borderRadius: '16px', padding: '20px 24px', border: '1px solid #312e81' }}>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#a5b4fc', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>💡 Smart Insight</p>
+                    {savingsRate < savingsGoal && income > 0
+                      ? <p style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: 1.7 }}>Cut <strong style={{ color: '#fbbf24' }}>{fmt(totalThisMonth - (income * (1 - savingsGoal/100)))}</strong> more this month to hit your {savingsGoal}% savings goal. Your top category is <strong style={{ color: '#a5b4fc' }}>{byCategory[0]?.cat ?? 'Food'}</strong> — start there.</p>
+                      : savingsRate >= savingsGoal
+                      ? <p style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: 1.7 }}>You're on track. Surplus of <strong style={{ color: '#34d399' }}>{fmt(savings)}</strong> — consider moving it to an index fund or FD for compounding growth.</p>
+                      : <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.7 }}>Add your income in settings to get personalised savings insights and recommendations.</p>
+                    }
+                  </div>
+
                 </div>
               </div>
             </div>
