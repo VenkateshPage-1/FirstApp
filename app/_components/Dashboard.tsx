@@ -1078,7 +1078,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     ].map(({ id, label, type, placeholder }) => (
                       <div key={id}>
                         <p style={lbl}>{label}</p>
-                        <input type={type} value={profileForm[id as keyof UserProfile]}
+                        <input type={type} value={profileForm[id as keyof UserProfile] as string}
                           onChange={e => setProfileForm(p => ({ ...p, [id]: e.target.value }))}
                           placeholder={placeholder} style={inp} disabled={isSavingProfile} />
                       </div>
