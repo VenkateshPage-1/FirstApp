@@ -24,12 +24,6 @@ export default function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps)
     setError('')
     setIsLoading(true)
 
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter both email and password')
-      setIsLoading(false)
-      return
-    }
-
     if (!emailRegex.test(email.trim())) {
       setError('Please enter a valid email address')
       setIsLoading(false)
@@ -42,16 +36,12 @@ export default function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       })
-
       const data = await response.json()
-
       if (!response.ok) {
         setError(data.error || 'Login failed')
         setPassword('')
-        setIsLoading(false)
         return
       }
-
       onLogin(data.user.username)
     } catch {
       setError('An error occurred. Please try again.')
@@ -62,14 +52,11 @@ export default function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps)
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    setResetMessage('')
     setError('')
-
-    if (!resetEmail.trim() || !emailRegex.test(resetEmail.trim())) {
+    if (!emailRegex.test(resetEmail.trim())) {
       setError('Please enter a valid email address')
       return
     }
-
     setIsResetting(true)
     try {
       const res = await fetch('/api/auth/reset-password', {
@@ -88,39 +75,28 @@ export default function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps)
 
   if (isForgotMode) {
     return (
-      <div className="container">
-        <div className="login-card">
-          <h1>Reset Password</h1>
+      <div className="auth-bg">
+        <div className="auth-card">
+          <h1>Reset password</h1>
+          <p className="auth-subtitle">We'll send a reset link to your email</p>
 
-          {error && <div className="error-message">{error}</div>}
-          {resetMessage && <div className="success-message">{resetMessage}</div>}
+          {error && <div className="alert-error">{error}</div>}
+          {resetMessage && <div className="alert-success">{resetMessage}</div>}
 
           {!resetMessage && (
             <form onSubmit={handleForgotPassword}>
               <div className="form-group">
-                <label htmlFor="resetEmail">Email</label>
-                <input
-                  id="resetEmail"
-                  type="email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  disabled={isResetting}
-                  autoComplete="email"
-                  required
-                />
+                <label htmlFor="resetEmail">Email address</label>
+                <input id="resetEmail" type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)} placeholder="you@example.com" disabled={isResetting} autoComplete="email" required />
               </div>
-              <button type="submit" className="submit-btn" disabled={isResetting}>
-                {isResetting ? 'Sending...' : 'Send Reset Link'}
+              <button type="submit" className="btn-primary btn-ripple" disabled={isResetting}>
+                {isResetting ? <span className="dot-loader"><span/><span/><span/></span> : 'Send reset link'}
               </button>
             </form>
           )}
 
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <button
-              onClick={() => { setIsForgotMode(false); setError(''); setResetMessage('') }}
-              style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px' }}
-            >
+          <div className="auth-footer">
+            <button className="auth-link" onClick={() => { setIsForgotMode(false); setError(''); setResetMessage('') }}>
               Back to login
             </button>
           </div>
@@ -130,76 +106,43 @@ export default function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps)
   }
 
   return (
-    <div className="container">
-      <div className="login-card">
-        <h1>Login</h1>
+    <div className="auth-bg">
+      <div className="auth-card">
+        <h1>Welcome back</h1>
+        <p className="auth-subtitle">Sign in to your account</p>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              disabled={isLoading}
-              autoComplete="email"
-              required
-            />
+            <label htmlFor="email">Email address</label>
+            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" disabled={isLoading} autoComplete="email" required />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              disabled={isLoading}
-              autoComplete="current-password"
-              required
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label htmlFor="password" style={{ margin: 0 }}>Password</label>
+              <button type="button" className="auth-link" style={{ fontSize: '13px' }} onClick={() => { setIsForgotMode(true); setError('') }}>
+                Forgot password?
+              </button>
+            </div>
+            <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" disabled={isLoading} autoComplete="current-password" required />
           </div>
 
-          <div style={{ textAlign: 'right', marginBottom: '16px', marginTop: '-10px' }}>
-            <button
-              type="button"
-              onClick={() => { setIsForgotMode(true); setError('') }}
-              style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', textDecoration: 'underline', fontSize: '13px' }}
-            >
-              Forgot password?
-            </button>
-          </div>
-
-          <button type="submit" className="submit-btn" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Login'}
+          <button type="submit" className="btn-primary btn-ripple" disabled={isLoading}>
+            {isLoading ? <span className="dot-loader"><span/><span/><span/></span> : 'Sign in'}
           </button>
         </form>
 
-        <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ color: '#666', fontSize: '14px' }}>
-            Don't have an account?{' '}
-            <button
-              onClick={onSwitchToSignup}
-              style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px', fontWeight: '600' }}
-            >
-              Sign up here
-            </button>
-          </p>
+        <div className="auth-footer">
+          Don't have an account?{' '}
+          <button className="auth-link" onClick={onSwitchToSignup}>Create one</button>
         </div>
 
-        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ color: '#999', fontSize: '12px' }}>
-            By logging in you agree to our{' '}
-            <a href="/terms" style={{ color: '#667eea' }}>Terms of Service</a>
-            {' '}and{' '}
-            <a href="/privacy" style={{ color: '#667eea' }}>Privacy Policy</a>
-          </p>
-        </div>
+        <p className="auth-legal">
+          By continuing you agree to our{' '}
+          <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>
+        </p>
       </div>
     </div>
   )

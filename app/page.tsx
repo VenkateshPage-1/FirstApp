@@ -1,76 +1,101 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import LoginForm from './_components/LoginForm'
 import SignupForm from './_components/SignupForm'
 import Dashboard from './_components/Dashboard'
 
-export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [currentUser, setCurrentUser] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSignupMode, setIsSignupMode] = useState(false)
+type View = 'loading' | 'login' | 'signup' | 'dashboard'
 
-  // Check session via server API (reads the __s HttpOnly cookie)
+export default function Home() {
+  const [view, setView] = useState<View>('loading')
+  const [currentUser, setCurrentUser] = useState<string | null>(null)
+  const lastUser = useRef<string>('')
+  const [animKey, setAnimKey] = useState(0)
+  const [exiting, setExiting] = useState(false)
+  const pendingView = useRef<View | null>(null)
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const res = await fetch('/api/auth/session')
         const data = await res.json()
-
         if (data.authenticated && data.user) {
+          lastUser.current = data.user.username
           setCurrentUser(data.user.username)
-          setIsLoggedIn(true)
+          setView('dashboard')
+        } else {
+          setView('login')
         }
-      } catch (error) {
-        console.error('Auth check error:', error)
-      } finally {
-        setIsLoading(false)
+      } catch {
+        setView('login')
       }
     }
-
     checkAuth()
   }, [])
 
+  // Animate out current view, then swap in the new one
+  const transitionTo = (next: View) => {
+    pendingView.current = next
+    setExiting(true)
+    setTimeout(() => {
+      setExiting(false)
+      setView(next)
+      setAnimKey(k => k + 1)
+      pendingView.current = null
+    }, 180) // matches pageOut duration
+  }
+
   const handleLogin = (username: string) => {
+    lastUser.current = username
     setCurrentUser(username)
-    setIsLoggedIn(true)
+    transitionTo('dashboard')
   }
 
   const handleLogout = () => {
-    // Dashboard already called /api/auth/logout which cleared the cookie + DB session
     setCurrentUser(null)
-    setIsLoggedIn(false)
-    setIsSignupMode(false)
+    transitionTo('login')
   }
 
-  if (isLoading) {
+  if (view === 'loading') {
     return (
-      <div className="container">
-        <div className="login-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ height: '32px', width: '60%', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-          <div style={{ height: '48px', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-          <div style={{ height: '48px', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-          <div style={{ height: '48px', width: '100%', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-          <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
+      <div className="auth-bg">
+        <div className="auth-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {[60, 100, 100, 100].map((w, i) => (
+            <div key={i} className="skeleton" style={{ height: i === 0 ? '28px' : '44px', width: `${w}%` }} />
+          ))}
         </div>
       </div>
     )
   }
 
-  if (isLoggedIn) {
-    return <Dashboard username={currentUser!} onLogout={handleLogout} />
+  const pageClass = exiting ? 'page-exit' : 'page-enter'
+
+  if (view === 'dashboard') {
+    return (
+      <div key={animKey} className={pageClass}>
+        <Dashboard username={currentUser ?? lastUser.current} onLogout={handleLogout} />
+      </div>
+    )
   }
 
-  return isSignupMode ? (
-    <SignupForm
-      onSignup={handleLogin}
-      onSwitchToLogin={() => setIsSignupMode(false)}
-    />
-  ) : (
-    <LoginForm
-      onLogin={handleLogin}
-      onSwitchToSignup={() => setIsSignupMode(true)}
-    />
+  if (view === 'signup') {
+    return (
+      <div key={animKey} className={pageClass}>
+        <SignupForm
+          onSignup={handleLogin}
+          onSwitchToLogin={() => transitionTo('login')}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div key={animKey} className={pageClass}>
+      <LoginForm
+        onLogin={handleLogin}
+        onSwitchToSignup={() => transitionTo('signup')}
+      />
+    </div>
   )
 }

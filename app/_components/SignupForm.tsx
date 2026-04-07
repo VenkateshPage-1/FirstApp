@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 interface SignupFormProps {
-  onSignup: (email: string) => void
+  onSignup: (username: string) => void
   onSwitchToLogin: () => void
 }
 
@@ -15,162 +15,108 @@ export default function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProp
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  // Live password strength
+  const checks = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+  }
+  const strength = Object.values(checks).filter(Boolean).length
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
     setIsLoading(true)
 
-    // Validate input
-    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-      setError('Please fill in all fields')
-      setIsLoading(false)
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email.trim())) {
       setError('Please enter a valid email address')
       setIsLoading(false)
       return
     }
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters')
-      setIsLoading(false)
-      return
-    }
-
-    if (!/[A-Z]/.test(password)) {
-      setError('Password must contain at least one uppercase letter')
-      setIsLoading(false)
-      return
-    }
-
-    if (!/[0-9]/.test(password)) {
-      setError('Password must contain at least one number')
-      setIsLoading(false)
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setIsLoading(false)
-      return
-    }
+    if (!checks.length) { setError('Password must be at least 8 characters'); setIsLoading(false); return }
+    if (!checks.upper) { setError('Password must contain at least one uppercase letter'); setIsLoading(false); return }
+    if (!checks.number) { setError('Password must contain at least one number'); setIsLoading(false); return }
+    if (password !== confirmPassword) { setError('Passwords do not match'); setIsLoading(false); return }
 
     try {
-      // Call server-side API route (tokens stay on server!)
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: email.trim(), 
-          password: password.trim() 
-        }),
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       })
-
       const data = await response.json()
-
       if (!response.ok) {
         setError(data.error || 'Failed to create account')
-        setIsLoading(false)
         return
       }
-
-      setSuccess(data.message || 'Account created successfully! Please check your email to confirm your account, then log in.')
-      setEmail('')
-      setPassword('')
-      setConfirmPassword('')
-      
-      // Auto-switch to login after 2 seconds
-      setTimeout(() => {
-        onSwitchToLogin()
-      }, 2000)
-    } catch (err) {
+      if (data.user) {
+        onSignup(data.user.username)
+      } else {
+        setSuccess(data.message || 'Check your email to confirm your account.')
+        setTimeout(() => onSwitchToLogin(), 4000)
+      }
+    } catch {
       setError('An error occurred. Please try again.')
-      console.error('Signup error:', err)
     } finally {
       setIsLoading(false)
     }
   }
 
+  const strengthColors = ['#e2e8f0', '#ef4444', '#f59e0b', '#10b981']
+  const strengthLabels = ['', 'Weak', 'Fair', 'Strong']
+
   return (
-    <div className="container">
-      <div className="login-card">
-        <h1>Create Account</h1>
-        
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
+    <div className="auth-bg">
+      <div className="auth-card">
+        <h1>Create account</h1>
+        <p className="auth-subtitle">Start tracking your expenses today</p>
+
+        {error && <div className="alert-error">{error}</div>}
+        {success && <div className="alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              disabled={isLoading}
-              autoComplete="email"
-              required
-            />
+            <label htmlFor="email">Email address</label>
+            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" disabled={isLoading} autoComplete="email" required />
           </div>
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min 8 chars, 1 uppercase, 1 number"
-              disabled={isLoading}
-              autoComplete="new-password"
-              required
-            />
+            <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 chars, 1 uppercase, 1 number" disabled={isLoading} autoComplete="new-password" required />
+            {password.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                  {[1, 2, 3].map(i => (
+                    <div key={i} style={{ flex: 1, height: '4px', borderRadius: '2px', backgroundColor: strength >= i ? strengthColors[strength] : '#e2e8f0', transition: 'background-color 0.2s' }} />
+                  ))}
+                </div>
+                <p style={{ fontSize: '12px', color: strengthColors[strength], fontWeight: '500' }}>{strengthLabels[strength]}</p>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm your password"
-              disabled={isLoading}
-              autoComplete="new-password"
-              required
-            />
+            <label htmlFor="confirmPassword">Confirm password</label>
+            <input id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Repeat your password" disabled={isLoading} autoComplete="new-password" required />
           </div>
 
-          <button type="submit" className="submit-btn" disabled={isLoading}>
-            {isLoading ? 'Creating Account...' : 'Sign Up'}
+          <button type="submit" className="btn-primary btn-ripple" disabled={isLoading}>
+            {isLoading ? <span className="dot-loader"><span/><span/><span/></span> : 'Create account'}
           </button>
         </form>
 
-        <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ color: '#666', fontSize: '14px' }}>
-            Already have an account?{' '}
-            <button
-              onClick={onSwitchToLogin}
-              style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px', fontWeight: '600' }}
-            >
-              Log in here
-            </button>
-          </p>
+        <div className="auth-footer">
+          Already have an account?{' '}
+          <button className="auth-link" onClick={onSwitchToLogin}>Sign in</button>
         </div>
 
-        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #eee', textAlign: 'center' }}>
-          <p style={{ color: '#999', fontSize: '12px' }}>
-            By signing up you agree to our{' '}
-            <a href="/terms" style={{ color: '#667eea' }}>Terms of Service</a>
-            {' '}and{' '}
-            <a href="/privacy" style={{ color: '#667eea' }}>Privacy Policy</a>
-          </p>
-        </div>
+        <p className="auth-legal">
+          By signing up you agree to our{' '}
+          <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>
+        </p>
       </div>
     </div>
   )

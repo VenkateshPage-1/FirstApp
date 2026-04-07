@@ -1,26 +1,27 @@
 import type { Metadata } from "next"
+import { Inter } from "next/font/google"
 import "./globals.css"
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  title: "My App",
-  description: "Secure web application",
-  icons: {
-    icon: '/favicon.ico',
-  },
+  title: "SpendWise",
+  description: "Track your daily expenses",
+  icons: { icon: '/favicon.ico' },
   openGraph: {
-    title: "My App",
-    description: "Secure web application",
+    title: "SpendWise",
+    description: "Track your daily expenses",
     type: "website",
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>{children}</body>
     </html>
   )

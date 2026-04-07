@@ -4,60 +4,49 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000
 const WARNING_BEFORE_MS = 60 * 1000
-
+const CACHE_TTL_MS = 60 * 1000 // 1 minute cache per month/category
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bills', 'Health', 'Entertainment', 'Other']
 
-interface DashboardProps {
-  username: string
-  onLogout: () => void
+const CAT_COLOR: Record<string, string> = {
+  Food: '#f97316', Transport: '#06b6d4', Shopping: '#8b5cf6',
+  Bills: '#ec4899', Health: '#10b981', Entertainment: '#f59e0b', Other: '#94a3b8',
+}
+const CAT_BG: Record<string, string> = {
+  Food: '#fff7ed', Transport: '#ecfeff', Shopping: '#f5f3ff',
+  Bills: '#fdf2f8', Health: '#f0fdf4', Entertainment: '#fffbeb', Other: '#f8fafc',
+}
+const CAT_ICON: Record<string, string> = {
+  Food: '🍽️', Transport: '🚗', Shopping: '🛍️',
+  Bills: '📄', Health: '❤️', Entertainment: '🎬', Other: '📦',
 }
 
-interface Expense {
-  id: string
-  amount: number
-  category: string
-  description: string
-  date: string
-}
-
-interface ExpenseForm {
-  amount: string
-  category: string
-  description: string
-  date: string
-}
+interface DashboardProps { username: string; onLogout: () => void }
+interface Expense { id: string; amount: number; category: string; description: string; date: string }
+interface ExpenseForm { amount: string; category: string; description: string; date: string }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string }
 
 const emptyForm: ExpenseForm = {
-  amount: '',
-  category: 'Food',
-  description: '',
+  amount: '', category: 'Food', description: '',
   date: new Date().toISOString().split('T')[0],
 }
-
-type Tab = 'expenses' | 'profile'
-
-interface UserProfile {
-  full_name: string
-  bio: string
-  phone: string
-  location: string
-  website: string
-  occupation: string
-}
-
 const emptyProfile: UserProfile = {
   full_name: '', bio: '', phone: '', location: '', website: '', occupation: '',
 }
+type Tab = 'expenses' | 'profile'
+
+// Simple in-memory cache
+const cache: Record<string, { data: Expense[]; ts: number }> = {}
 
 export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [tab, setTab] = useState<Tab>('expenses')
-
-  // Inactivity
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const warningTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showInactivityWarning, setShowInactivityWarning] = useState(false)
 
-  // Expenses state
+  const [initialLoading, setInitialLoading] = useState(true)
+  const expensesReady = useRef(false)
+  const profileReady = useRef(false)
+
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [expensesLoading, setExpensesLoading] = useState(true)
   const [expenseError, setExpenseError] = useState('')
@@ -68,8 +57,9 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [isSavingExpense, setIsSavingExpense] = useState(false)
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7))
   const [filterCategory, setFilterCategory] = useState('All')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-  // Profile state
   const [userProfile, setUserProfile] = useState<UserProfile>(emptyProfile)
   const [profileForm, setProfileForm] = useState<UserProfile>(emptyProfile)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -88,7 +78,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
     if (warningTimer.current) clearTimeout(warningTimer.current)
     warningTimer.current = setTimeout(() => setShowInactivityWarning(true), INACTIVITY_TIMEOUT_MS - WARNING_BEFORE_MS)
-    inactivityTimer.current = setTimeout(() => handleLogout(), INACTIVITY_TIMEOUT_MS)
+    inactivityTimer.current = setTimeout(handleLogout, INACTIVITY_TIMEOUT_MS)
   }, [handleLogout])
 
   useEffect(() => {
@@ -102,8 +92,19 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     }
   }, [resetInactivityTimer])
 
-  // Load expenses
-  const fetchExpenses = useCallback(async () => {
+  const cacheKey = `${filterMonth}__${filterCategory}`
+
+  const fetchExpenses = useCallback(async (force = false) => {
+    // Serve from cache if fresh
+    const cached = cache[cacheKey]
+    if (!force && cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      setExpenses(cached.data)
+      setExpensesLoading(false)
+      expensesReady.current = true
+      if (profileReady.current) setInitialLoading(false)
+      return
+    }
+
     setExpensesLoading(true)
     setExpenseError('')
     try {
@@ -112,17 +113,20 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
       const res = await fetch(`/api/expenses?${params}`)
       if (res.status === 401) { handleLogout(); return }
       const data = await res.json()
-      setExpenses(data.expenses ?? [])
+      const list: Expense[] = data.expenses ?? []
+      cache[cacheKey] = { data: list, ts: Date.now() }
+      setExpenses(list)
     } catch {
       setExpenseError('Failed to load expenses')
     } finally {
       setExpensesLoading(false)
+      expensesReady.current = true
+      if (profileReady.current) setInitialLoading(false)
     }
-  }, [filterMonth, filterCategory, handleLogout])
+  }, [filterMonth, filterCategory, handleLogout, cacheKey])
 
   useEffect(() => { fetchExpenses() }, [fetchExpenses])
 
-  // Load profile
   useEffect(() => {
     const fetchProfile = async () => {
       setProfileLoading(true)
@@ -130,59 +134,113 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         const res = await fetch('/api/profile')
         if (res.status === 401) { handleLogout(); return }
         const data = await res.json()
-        if (data.profile) {
-          setUserProfile(data.profile)
-          setProfileForm(data.profile)
-        }
+        if (data.profile) { setUserProfile(data.profile); setProfileForm(data.profile) }
       } catch {
         setProfileError('Failed to load profile')
       } finally {
         setProfileLoading(false)
+        profileReady.current = true
+        if (expensesReady.current) setInitialLoading(false)
       }
     }
     fetchProfile()
   }, [handleLogout])
 
-  // Expense handlers
+  // ── Optimistic add / edit ──
   const handleSaveExpense = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSavingExpense(true)
     setExpenseError('')
 
-    const url = editingExpense ? `/api/expenses/${editingExpense.id}` : '/api/expenses'
-    const method = editingExpense ? 'PATCH' : 'POST'
+    const isEdit = !!editingExpense
+    const tempId = `temp_${Date.now()}`
+    const optimistic: Expense = {
+      id: isEdit ? editingExpense!.id : tempId,
+      amount: Number(form.amount),
+      category: form.category,
+      description: form.description,
+      date: form.date,
+    }
+
+    // Optimistic update — instant UI
+    if (isEdit) {
+      setExpenses(prev => prev.map(e => e.id === editingExpense!.id ? optimistic : e))
+    } else {
+      setExpenses(prev => [optimistic, ...prev])
+    }
+
+    // Close form immediately
+    setShowAddForm(false)
+    setEditingExpense(null)
+    setForm(emptyForm)
+    setIsSavingExpense(true)
 
     try {
+      const url = isEdit ? `/api/expenses/${editingExpense!.id}` : '/api/expenses'
       const res = await fetch(url, {
-        method,
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
       const data = await res.json()
-      if (!res.ok) { setExpenseError(data.error || 'Failed to save'); return }
 
-      setExpenseSuccess(editingExpense ? 'Expense updated!' : 'Expense added!')
-      setTimeout(() => setExpenseSuccess(''), 3000)
-      setShowAddForm(false)
-      setEditingExpense(null)
-      setForm(emptyForm)
-      fetchExpenses()
+      if (!res.ok) {
+        // Rollback
+        if (isEdit) {
+          setExpenses(prev => prev.map(e => e.id === optimistic.id ? editingExpense! : e))
+        } else {
+          setExpenses(prev => prev.filter(e => e.id !== tempId))
+        }
+        setExpenseError(data.error || 'Failed to save')
+        return
+      }
+
+      // Replace temp id with real id from server
+      if (!isEdit && data.expense) {
+        setExpenses(prev => prev.map(e => e.id === tempId ? data.expense : e))
+        cache[cacheKey] = { data: [], ts: 0 } // invalidate cache
+      }
+
+      setExpenseSuccess(isEdit ? 'Updated!' : 'Added!')
+      setTimeout(() => setExpenseSuccess(''), 2000)
     } catch {
+      // Rollback
+      if (isEdit) {
+        setExpenses(prev => prev.map(e => e.id === optimistic.id ? editingExpense! : e))
+      } else {
+        setExpenses(prev => prev.filter(e => e.id !== tempId))
+      }
       setExpenseError('An error occurred')
     } finally {
       setIsSavingExpense(false)
     }
   }
 
+  // ── Optimistic delete ──
   const handleDeleteExpense = async (id: string) => {
-    if (!confirm('Delete this expense?')) return
+    setConfirmDeleteId(null)
+    setDeletingId(id)
+
+    const deleted = expenses.find(e => e.id === id)!
+
+    // Animate out then remove
+    setTimeout(() => {
+      setExpenses(prev => prev.filter(e => e.id !== id))
+      setDeletingId(null)
+      cache[cacheKey] = { data: [], ts: 0 } // invalidate cache
+    }, 150)
+
     try {
       const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' })
-      if (!res.ok) { setExpenseError('Failed to delete'); return }
-      setExpenses(prev => prev.filter(e => e.id !== id))
-      setExpenseSuccess('Expense deleted!')
-      setTimeout(() => setExpenseSuccess(''), 3000)
+      if (!res.ok) {
+        // Rollback
+        setExpenses(prev => [deleted, ...prev])
+        setExpenseError('Failed to delete')
+      } else {
+        setExpenseSuccess('Deleted!')
+        setTimeout(() => setExpenseSuccess(''), 2000)
+      }
     } catch {
+      setExpenses(prev => [deleted, ...prev])
       setExpenseError('An error occurred')
     }
   }
@@ -191,20 +249,17 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     setEditingExpense(expense)
     setForm({ amount: String(expense.amount), category: expense.category, description: expense.description, date: expense.date })
     setShowAddForm(true)
+    setConfirmDeleteId(null)
   }
 
-  const handleCancelForm = () => {
-    setShowAddForm(false)
-    setEditingExpense(null)
-    setForm(emptyForm)
-    setExpenseError('')
-  }
-
-  // Profile handlers
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSavingProfile(true)
     setProfileError('')
+    // Optimistic update
+    const prev = userProfile
+    setUserProfile(profileForm)
+    setIsEditingProfile(false)
     try {
       const res = await fetch('/api/profile', {
         method: 'POST',
@@ -212,283 +267,513 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         body: JSON.stringify(profileForm),
       })
       const data = await res.json()
-      if (!res.ok) { setProfileError(data.error || 'Failed to save'); return }
-      setUserProfile(profileForm)
-      setIsEditingProfile(false)
-      setProfileSuccess('Profile saved!')
-      setTimeout(() => setProfileSuccess(''), 3000)
+      if (!res.ok) {
+        setUserProfile(prev) // rollback
+        setIsEditingProfile(true)
+        setProfileError(data.error || 'Failed to save')
+        return
+      }
+      setProfileSuccess('Saved!')
+      setTimeout(() => setProfileSuccess(''), 2000)
     } catch {
+      setUserProfile(prev)
+      setIsEditingProfile(true)
       setProfileError('An error occurred')
     } finally {
       setIsSavingProfile(false)
     }
   }
 
-  // Summary calculations
-  const totalThisMonth = expenses.reduce((sum, e) => sum + e.amount, 0)
+  // Analytics
+  const totalThisMonth = expenses.reduce((s, e) => s + e.amount, 0)
   const today = new Date().toISOString().split('T')[0]
-  const totalToday = expenses.filter(e => e.date === today).reduce((sum, e) => sum + e.amount, 0)
+  const totalToday = expenses.filter(e => e.date === today).reduce((s, e) => s + e.amount, 0)
   const byCategory = CATEGORIES.map(cat => ({
     cat,
-    total: expenses.filter(e => e.category === cat).reduce((sum, e) => sum + e.amount, 0),
-  })).filter(x => x.total > 0)
+    total: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
+    count: expenses.filter(e => e.category === cat).length,
+  })).filter(x => x.total > 0).sort((a, b) => b.total - a.total)
 
-  // Styles
-  const s = {
-    card: { backgroundColor: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginBottom: '16px' },
-    label: { color: '#999', fontSize: '12px', textTransform: 'uppercase' as const, marginBottom: '4px' },
-    value: { color: '#333', fontSize: '20px', fontWeight: '700' as const },
-    input: { width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '15px', boxSizing: 'border-box' as const },
-    btn: (color: string, text = 'white') => ({ backgroundColor: color, color: text, border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' as const, fontSize: '14px' }),
-    tag: (color: string) => ({ backgroundColor: color, color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' as const }),
+  const avgPerDay = (() => {
+    if (!expenses.length) return 0
+    const days = new Set(expenses.map(e => e.date)).size
+    return totalThisMonth / days
+  })()
+
+  const dailyTotals = expenses.reduce<Record<string, number>>((acc, e) => {
+    acc[e.date] = (acc[e.date] ?? 0) + e.amount; return acc
+  }, {})
+
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6 - i))
+    const key = d.toISOString().split('T')[0]
+    return { day: d.toLocaleDateString('en', { weekday: 'short' }), key, amount: dailyTotals[key] ?? 0 }
+  })
+  const maxDay = Math.max(...last7Days.map(d => d.amount), 1)
+
+  const topCategory = byCategory[0] ?? null
+  const insights: { text: string; color: string }[] = []
+  if (topCategory) insights.push({ text: `Most spent on ${topCategory.cat} — ₹${topCategory.total.toFixed(2)}`, color: CAT_COLOR[topCategory.cat] })
+  if (totalToday > avgPerDay * 1.5 && avgPerDay > 0) insights.push({ text: `Today's spending is 50%+ above your daily average`, color: '#ef4444' })
+  if (totalToday === 0) insights.push({ text: 'No spending recorded today', color: '#10b981' })
+  if (byCategory.length >= 4) insights.push({ text: `Spending spread across ${byCategory.length} categories`, color: '#8b5cf6' })
+  if (avgPerDay > 0) insights.push({ text: `Daily average this month: ₹${avgPerDay.toFixed(2)}`, color: '#06b6d4' })
+
+  // Style helpers
+  const sk = (w: string, h: string, r = '8px'): React.CSSProperties => ({
+    width: w, height: h, borderRadius: r,
+    background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)',
+    backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite',
+  })
+
+  if (initialLoading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter),sans-serif' }}>
+        {/* Nav skeleton */}
+        <div style={{ background: 'white', borderBottom: '1px solid #f1f5f9', padding: '0 28px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <div style={sk('100px', '20px', '6px')} />
+            <div style={sk('160px', '28px', '8px')} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={sk('30px', '30px', '50%')} />
+            <div style={sk('70px', '16px', '6px')} />
+            <div style={sk('72px', '30px', '8px')} />
+          </div>
+        </div>
+
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 28px' }}>
+          {/* Summary cards skeleton */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', border: '1px solid #f1f5f9' }}>
+                <div style={sk('60px', '11px', '4px')} />
+                <div style={{ ...sk('120px', '32px', '6px'), marginTop: '10px' }} />
+                <div style={{ ...sk('36px', '3px', '2px'), marginTop: '16px' }} />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
+            {/* Left column skeleton */}
+            <div>
+              <div style={{ background: 'white', borderRadius: '16px', padding: '14px 18px', border: '1px solid #f1f5f9', marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={sk('120px', '34px')} />
+                <div style={sk('120px', '34px')} />
+                <div style={{ ...sk('110px', '34px'), marginLeft: 'auto' }} />
+              </div>
+              <div style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', border: '1px solid #f1f5f9' }}>
+                <div style={{ ...sk('80px', '11px', '4px'), marginBottom: '14px' }} />
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} style={{ ...sk('100%', '58px', '10px'), marginBottom: '7px' }} />
+                ))}
+              </div>
+            </div>
+
+            {/* Right column skeleton */}
+            <div>
+              {[130, 110, 100].map((h, i) => (
+                <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', border: '1px solid #f1f5f9', marginBottom: '14px' }}>
+                  <div style={{ ...sk('70px', '11px', '4px'), marginBottom: '14px' }} />
+                  <div style={sk('100%', `${h}px`, '8px')} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+      </div>
+    )
   }
 
-  const categoryColor: Record<string, string> = {
-    Food: '#ff6b6b', Transport: '#4ecdc4', Shopping: '#a29bfe',
-    Bills: '#fd79a8', Health: '#55efc4', Entertainment: '#fdcb6e', Other: '#b2bec3',
+  const card = (extra?: React.CSSProperties): React.CSSProperties => ({
+    background: 'white', borderRadius: '16px', padding: '20px 24px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)',
+    border: '1px solid #f1f5f9', marginBottom: '14px', ...extra,
+  })
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '9px 12px', border: '1.5px solid #e2e8f0',
+    borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit',
+    color: '#0f172a', outline: 'none', boxSizing: 'border-box',
+  }
+
+  const btnClass = (type: 'primary' | 'danger' | 'ghost') =>
+    `btn-ripple ${type === 'primary' ? 'btn-primary-anim' : type === 'danger' ? 'btn-danger-anim' : 'btn-ghost-anim'}`
+
+  const btn = (bg: string, color = 'white', extra?: React.CSSProperties): React.CSSProperties => ({
+    background: bg, color, border: 'none', padding: '7px 14px',
+    borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+    fontFamily: 'inherit', cursor: 'pointer', ...extra,
+  })
+
+  const lbl: React.CSSProperties = {
+    fontSize: '11px', fontWeight: 600, color: '#94a3b8',
+    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px',
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '20px' }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif' }}>
 
-        {/* Inactivity Warning */}
-        {showInactivityWarning && (
-          <div style={{ backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '6px', padding: '12px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#856404', fontWeight: '500' }}>You will be logged out in 1 minute due to inactivity.</span>
-            <button onClick={resetInactivityTimer} style={s.btn('#ffc107', '#212529')}>Stay logged in</button>
-          </div>
-        )}
-
-        {/* Header */}
-        <div style={{ ...s.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div>
-            <h1 style={{ margin: 0, color: '#333', fontSize: '22px' }}>Welcome, {username}!</h1>
-            <p style={{ margin: 0, color: '#999', fontSize: '14px' }}>Manage your expenses and profile</p>
-          </div>
-          <button onClick={handleLogout} style={s.btn('#ff6b6b')}>Logout</button>
+      {/* Inactivity banner */}
+      {showInactivityWarning && (
+        <div style={{ background: '#fef3c7', borderBottom: '1px solid #fde68a', padding: '8px 24px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', fontSize: '13px', color: '#92400e' }}>
+          <span>You'll be logged out in 1 minute due to inactivity.</span>
+          <button onClick={resetInactivityTimer} className={btnClass('ghost')} style={btn('#f59e0b', 'white', { padding: '4px 12px' })}>Stay logged in</button>
         </div>
+      )}
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', backgroundColor: 'rgba(255,255,255,0.2)', padding: '4px', borderRadius: '8px', width: 'fit-content' }}>
-          {(['expenses', 'profile'] as Tab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding: '8px 24px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '14px', backgroundColor: tab === t ? 'white' : 'transparent', color: tab === t ? '#667eea' : 'white', textTransform: 'capitalize' }}>
-              {t}
-            </button>
-          ))}
+      {/* Sticky nav */}
+      <nav style={{ background: 'white', borderBottom: '1px solid #f1f5f9', padding: '0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+          <span style={{ fontWeight: 800, fontSize: '17px', color: '#6366f1', letterSpacing: '-0.5px' }}>SpendWise</span>
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {(['expenses', 'profile'] as Tab[]).map(t => (
+              <button key={t} onClick={() => setTab(t)} className="btn-pill"
+                style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize' }}>
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '13px' }}>
+            {username[0]?.toUpperCase()}
+          </div>
+          <span style={{ fontSize: '13px', fontWeight: 500, color: '#475569' }}>{username}</span>
+          <button onClick={handleLogout} className={btnClass('danger')} style={btn('#fef2f2', '#ef4444', { border: '1px solid #fee2e2', padding: '5px 12px' })}>Sign out</button>
+        </div>
+      </nav>
+
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 28px' }}>
 
         {/* ── EXPENSES TAB ── */}
         {tab === 'expenses' && (
           <>
-            {/* Summary cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-              <div style={s.card}>
-                <p style={s.label}>Today</p>
-                <p style={s.value}>${totalToday.toFixed(2)}</p>
-              </div>
-              <div style={s.card}>
-                <p style={s.label}>This Month</p>
-                <p style={s.value}>${totalThisMonth.toFixed(2)}</p>
-              </div>
-              <div style={s.card}>
-                <p style={s.label}>Transactions</p>
-                <p style={s.value}>{expenses.length}</p>
-              </div>
+            {/* Summary row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
+              {[
+                { label: "Today", value: `₹${totalToday.toFixed(2)}`, accent: '#6366f1' },
+                { label: 'This month', value: `₹${totalThisMonth.toFixed(2)}`, accent: '#8b5cf6' },
+                { label: 'Transactions', value: String(expenses.length), accent: '#06b6d4' },
+              ].map(({ label, value, accent }) => (
+                <div key={label} style={card({ padding: '20px 24px' })}>
+                  <p style={lbl}>{label}</p>
+                  <p style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', letterSpacing: '-1px', margin: '2px 0 0' }}>{value}</p>
+                  <div style={{ height: '3px', background: accent, borderRadius: '2px', marginTop: '14px', width: '36px' }} />
+                </div>
+              ))}
             </div>
 
-            {/* Category breakdown */}
-            {byCategory.length > 0 && (
-              <div style={{ ...s.card, marginBottom: '16px' }}>
-                <p style={{ ...s.label, marginBottom: '12px' }}>Spending by Category</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '8px' }}>
-                  {byCategory.map(({ cat, total }) => (
-                    <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f9f9f9', padding: '6px 12px', borderRadius: '20px' }}>
-                      <span style={{ ...s.tag(categoryColor[cat] || '#999'), padding: '2px 8px' }}>{cat}</span>
-                      <span style={{ fontWeight: '600', color: '#333', fontSize: '14px' }}>${total.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {expenseSuccess && (
+              <div className="alert-success fade-in" style={{ marginBottom: '12px' }}>{expenseSuccess}</div>
+            )}
+            {expenseError && (
+              <div className="alert-error fade-in" style={{ marginBottom: '12px' }}>{expenseError}</div>
             )}
 
-            {/* Filters + Add button */}
-            <div style={{ ...s.card }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '10px', alignItems: 'flex-end', marginBottom: showAddForm ? '20px' : '0' }}>
-                <div>
-                  <p style={s.label}>Month</p>
-                  <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...s.input, width: 'auto' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
+
+              {/* LEFT */}
+              <div>
+                {/* Filter bar + add button */}
+                <div style={card({ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end', padding: '14px 18px' })}>
+                  <div>
+                    <p style={lbl}>Month</p>
+                    <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, width: 'auto' }} />
+                  </div>
+                  <div>
+                    <p style={lbl}>Category</p>
+                    <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...inp, width: 'auto' }}>
+                      <option>All</option>
+                      {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => { setShowAddForm(v => !v); setEditingExpense(null); setForm(emptyForm); setConfirmDeleteId(null) }}
+                    className={btnClass('primary')}
+                    style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { marginLeft: 'auto', padding: '8px 16px', borderRadius: '9px' })}>
+                    {showAddForm ? '✕ Cancel' : '+ Add expense'}
+                  </button>
                 </div>
-                <div>
-                  <p style={s.label}>Category</p>
-                  <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...s.input, width: 'auto' }}>
-                    <option>All</option>
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
+
+                {/* Add / Edit form */}
+                {showAddForm && (
+                  <div className="fade-in" style={card({ borderLeft: '3px solid #6366f1' })}>
+                    <h3 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
+                      {editingExpense ? 'Edit expense' : 'New expense'}
+                    </h3>
+                    <form onSubmit={handleSaveExpense}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                        <div>
+                          <p style={lbl}>Amount (₹)</p>
+                          <input type="number" min="0.01" step="0.01" value={form.amount}
+                            onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
+                            placeholder="0.00" style={inp} required autoFocus />
+                        </div>
+                        <div>
+                          <p style={lbl}>Category</p>
+                          <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={inp}>
+                            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <p style={lbl}>Date</p>
+                          <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={inp} required />
+                        </div>
+                        <div>
+                          <p style={lbl}>Description</p>
+                          <input type="text" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                            placeholder="e.g. Lunch at cafe" style={inp} maxLength={200} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button type="submit" className={btnClass('primary')} style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '8px 18px' })} disabled={isSavingExpense}>
+                          {isSavingExpense ? <span className="dot-loader"><span/><span/><span/></span> : editingExpense ? 'Update' : 'Save'}
+                        </button>
+                        <button type="button" className={btnClass('ghost')}
+                          onClick={() => { setShowAddForm(false); setEditingExpense(null); setForm(emptyForm) }}
+                          style={btn('#f1f5f9', '#64748b', { padding: '8px 18px' })}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* Expenses list */}
+                <div style={card()}>
+                  {expensesLoading ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                      {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ height: '58px', borderRadius: '10px' }} />)}
+                    </div>
+                  ) : expenses.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '44px 0', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '36px', marginBottom: '10px' }}>💸</div>
+                      <p style={{ fontWeight: 600, color: '#475569', marginBottom: '3px' }}>No expenses yet</p>
+                      <p style={{ fontSize: '13px' }}>Add your first expense above</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ ...lbl, marginBottom: '12px' }}>{expenses.length} record{expenses.length !== 1 ? 's' : ''} · {filterMonth}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                        {expenses.map(expense => (
+                          <div key={expense.id}>
+                            <div
+                              className={`expense-row${deletingId === expense.id ? ' deleting' : ' adding'}`}
+                              style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', background: CAT_BG[expense.category] || '#f8fafc', borderRadius: '10px', border: `1px solid ${CAT_COLOR[expense.category]}22` }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: CAT_COLOR[expense.category] || '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
+                                {CAT_ICON[expense.category] || '📦'}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontWeight: 600, fontSize: '14px', color: '#0f172a', marginBottom: '1px' }}>{expense.category}</p>
+                                <p style={{ fontSize: '12px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {expense.description || '—'} · {expense.date}
+                                </p>
+                              </div>
+                              <p style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a', flexShrink: 0 }}>₹{expense.amount.toFixed(2)}</p>
+                              <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                                <button onClick={() => handleEditExpense(expense)}
+                                  className={btnClass('ghost')}
+                                  style={btn('#eef2ff', '#6366f1', { padding: '4px 10px', fontSize: '12px' })}>
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteId(confirmDeleteId === expense.id ? null : expense.id)}
+                                  className={btnClass('danger')}
+                                  style={btn('#fef2f2', '#ef4444', { padding: '4px 10px', fontSize: '12px' })}>
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Inline delete confirm — no blocking dialog */}
+                            {confirmDeleteId === expense.id && (
+                              <div className="delete-confirm" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 13px', background: '#fef2f2', borderRadius: '0 0 10px 10px', border: '1px solid #fee2e2', borderTop: 'none', marginTop: '-4px' }}>
+                                <span style={{ fontSize: '13px', color: '#b91c1c', flex: 1 }}>Delete this expense?</span>
+                                <button onClick={() => handleDeleteExpense(expense.id)}
+                                  className={btnClass('danger')}
+                                  style={btn('#ef4444', 'white', { padding: '4px 12px', fontSize: '12px' })}>
+                                  Yes, delete
+                                </button>
+                                <button onClick={() => setConfirmDeleteId(null)}
+                                  className={btnClass('ghost')}
+                                  style={btn('#f1f5f9', '#64748b', { padding: '4px 12px', fontSize: '12px' })}>
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <button
-                  onClick={() => { setShowAddForm(true); setEditingExpense(null); setForm(emptyForm) }}
-                  style={{ ...s.btn('#667eea'), marginLeft: 'auto', padding: '10px 20px' }}
-                >
-                  + Add Expense
-                </button>
               </div>
 
-              {/* Add / Edit form */}
-              {showAddForm && (
-                <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
-                  <h3 style={{ margin: '0 0 16px', color: '#333' }}>{editingExpense ? 'Edit Expense' : 'New Expense'}</h3>
-                  {expenseError && <div className="error-message">{expenseError}</div>}
-                  <form onSubmit={handleSaveExpense}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '12px' }}>
-                      <div>
-                        <p style={s.label}>Amount ($)</p>
-                        <input type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" style={s.input} required disabled={isSavingExpense} />
-                      </div>
-                      <div>
-                        <p style={s.label}>Category</p>
-                        <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={s.input} disabled={isSavingExpense}>
-                          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <p style={s.label}>Date</p>
-                        <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={s.input} required disabled={isSavingExpense} />
-                      </div>
-                      <div>
-                        <p style={s.label}>Description (optional)</p>
-                        <input type="text" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Lunch at cafe" style={s.input} disabled={isSavingExpense} maxLength={200} />
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button type="submit" style={s.btn('#667eea')} disabled={isSavingExpense}>
-                        {isSavingExpense ? 'Saving...' : editingExpense ? 'Update' : 'Save Expense'}
-                      </button>
-                      <button type="button" onClick={handleCancelForm} style={s.btn('#999')} disabled={isSavingExpense}>Cancel</button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </div>
-
-            {/* Feedback */}
-            {expenseSuccess && <div className="success-message">{expenseSuccess}</div>}
-            {!showAddForm && expenseError && <div className="error-message">{expenseError}</div>}
-
-            {/* Expenses list */}
-            <div style={s.card}>
-              {expensesLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {[1, 2, 3].map(i => (
-                    <div key={i} style={{ height: '56px', borderRadius: '6px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-                  ))}
-                  <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
-                </div>
-              ) : expenses.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-                  <p style={{ fontSize: '32px', marginBottom: '8px' }}>💸</p>
-                  <p>No expenses found. Add your first expense above.</p>
-                </div>
-              ) : (
-                <div>
-                  <p style={{ ...s.label, marginBottom: '12px' }}>
-                    {expenses.length} expense{expenses.length !== 1 ? 's' : ''} — {filterMonth}
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
-                    {expenses.map(expense => (
-                      <div key={expense.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '6px', flexWrap: 'wrap' as const }}>
-                        <span style={s.tag(categoryColor[expense.category] || '#999')}>{expense.category}</span>
-                        <span style={{ fontWeight: '700', color: '#333', fontSize: '16px', minWidth: '70px' }}>${expense.amount.toFixed(2)}</span>
-                        <span style={{ color: '#555', flex: 1, fontSize: '14px' }}>{expense.description || '—'}</span>
-                        <span style={{ color: '#999', fontSize: '13px' }}>{expense.date}</span>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => handleEditExpense(expense)} style={s.btn('#a29bfe')}>Edit</button>
-                          <button onClick={() => handleDeleteExpense(expense.id)} style={s.btn('#ff6b6b')}>Delete</button>
+              {/* RIGHT — Analytics */}
+              <div>
+                {/* Category breakdown */}
+                <div style={card()}>
+                  <p style={{ ...lbl, marginBottom: '14px' }}>Breakdown</p>
+                  {byCategory.length === 0 ? (
+                    <p style={{ fontSize: '13px', color: '#cbd5e1', textAlign: 'center', padding: '12px 0' }}>No data yet</p>
+                  ) : byCategory.map(({ cat, total, count }) => {
+                    const pct = totalThisMonth > 0 ? (total / totalThisMonth) * 100 : 0
+                    return (
+                      <div key={cat} style={{ marginBottom: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{cat}</span>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>₹{total.toFixed(2)} <span style={{ color: '#cbd5e1' }}>({count})</span></span>
                         </div>
+                        <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div className="progress-fill" style={{ height: '100%', width: `${pct}%`, background: CAT_COLOR[cat] || '#6366f1', borderRadius: '3px' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 7-day chart */}
+                <div style={card()}>
+                  <p style={{ ...lbl, marginBottom: '14px' }}>Last 7 Days</p>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: '68px', marginBottom: '10px' }}>
+                    {last7Days.map(({ day, key, amount }) => (
+                      <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'flex-end' }}>
+                        <div
+                          className="bar-fill"
+                          title={`₹${amount.toFixed(2)}`}
+                          style={{ width: '100%', height: `${Math.max((amount / maxDay) * 52, amount > 0 ? 4 : 0)}px`, background: key === today ? '#6366f1' : '#e0e7ff', borderRadius: '4px 4px 0 0' }}
+                        />
+                        <span style={{ fontSize: '10px', color: key === today ? '#6366f1' : '#94a3b8', fontWeight: key === today ? 700 : 400 }}>{day}</span>
                       </div>
                     ))}
                   </div>
+                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '9px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={lbl}>Daily avg</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>₹{avgPerDay.toFixed(2)}</span>
+                  </div>
                 </div>
-              )}
+
+                {/* Insights */}
+                <div style={card()}>
+                  <p style={{ ...lbl, marginBottom: '12px' }}>Insights</p>
+                  {insights.length === 0 ? (
+                    <p style={{ fontSize: '13px', color: '#cbd5e1' }}>Add expenses to see insights</p>
+                  ) : insights.map((ins, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '9px', alignItems: 'flex-start', marginBottom: '10px' }}>
+                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: ins.color, marginTop: '5px', flexShrink: 0 }} />
+                      <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, margin: 0 }}>{ins.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </>
         )}
 
         {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
-          <div style={s.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ margin: 0, color: '#333' }}>Profile Information</h2>
-              {!isEditingProfile && (
-                <button onClick={() => setIsEditingProfile(true)} style={s.btn('#667eea')}>Edit Profile</button>
-              )}
-            </div>
-
-            {profileError && <div className="error-message">{profileError}</div>}
-            {profileSuccess && <div className="success-message">{profileSuccess}</div>}
-
-            {profileLoading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {[1, 2, 3].map(i => <div key={i} style={{ height: '24px', borderRadius: '4px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />)}
-              </div>
-            ) : isEditingProfile ? (
-              <form onSubmit={handleSaveProfile}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
-                  {[
-                    { id: 'full_name', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
-                    { id: 'occupation', label: 'Occupation', type: 'text', placeholder: 'What do you do?' },
-                    { id: 'phone', label: 'Phone', type: 'tel', placeholder: 'Your phone number' },
-                    { id: 'location', label: 'Location', type: 'text', placeholder: 'City, Country' },
-                    { id: 'website', label: 'Website', type: 'url', placeholder: 'https://yourwebsite.com' },
-                  ].map(({ id, label, type, placeholder }) => (
-                    <div key={id}>
-                      <p style={s.label}>{label}</p>
-                      <input type={type} value={profileForm[id as keyof UserProfile]} onChange={e => setProfileForm(p => ({ ...p, [id]: e.target.value }))} placeholder={placeholder} style={s.input} disabled={isSavingProfile} />
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <p style={s.label}>Bio</p>
-                  <textarea value={profileForm.bio} onChange={e => setProfileForm(p => ({ ...p, bio: e.target.value }))} placeholder="Tell us about yourself..." rows={3} disabled={isSavingProfile} style={{ ...s.input, resize: 'vertical', fontFamily: 'inherit' }} />
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button type="submit" style={s.btn('#667eea')} disabled={isSavingProfile}>
-                    {isSavingProfile ? 'Saving...' : 'Save Profile'}
-                  </button>
-                  <button type="button" onClick={() => { setIsEditingProfile(false); setProfileForm(userProfile); setProfileError('') }} style={s.btn('#999')} disabled={isSavingProfile}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-                {[
-                  { label: 'Full Name', value: userProfile.full_name },
-                  { label: 'Occupation', value: userProfile.occupation },
-                  { label: 'Phone', value: userProfile.phone },
-                  { label: 'Location', value: userProfile.location },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <p style={s.label}>{label}</p>
-                    <p style={{ color: '#333', fontWeight: '600', fontSize: '16px' }}>{value || 'Not set'}</p>
-                  </div>
-                ))}
+          <div style={{ maxWidth: '640px' }}>
+            <div style={card()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
                 <div>
-                  <p style={s.label}>Website</p>
-                  <p style={{ color: '#333', fontWeight: '600', fontSize: '16px' }}>
-                    {userProfile.website
-                      ? <a href={userProfile.website} target="_blank" rel="noopener noreferrer" style={{ color: '#667eea' }}>Visit</a>
-                      : 'Not set'}
-                  </p>
+                  <h2 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Profile</h2>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '2px' }}>Your personal information</p>
                 </div>
-                {userProfile.bio && (
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <p style={s.label}>Bio</p>
-                    <p style={{ color: '#555', lineHeight: '1.6' }}>{userProfile.bio}</p>
-                  </div>
+                {!isEditingProfile && (
+                  <button onClick={() => setIsEditingProfile(true)}
+                    className={btnClass('primary')}
+                    style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '7px 16px' })}>
+                    Edit
+                  </button>
                 )}
               </div>
-            )}
+
+              {profileError && <div className="alert-error">{profileError}</div>}
+              {profileSuccess && <div className="alert-success fade-in">{profileSuccess}</div>}
+
+              {profileLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: '18px' }} />)}
+                </div>
+              ) : isEditingProfile ? (
+                <form onSubmit={handleSaveProfile}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                    {[
+                      { id: 'full_name', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
+                      { id: 'occupation', label: 'Occupation', type: 'text', placeholder: 'What do you do?' },
+                      { id: 'phone', label: 'Phone', type: 'tel', placeholder: 'Phone number' },
+                      { id: 'location', label: 'Location', type: 'text', placeholder: 'City, Country' },
+                      { id: 'website', label: 'Website', type: 'url', placeholder: 'https://yoursite.com' },
+                    ].map(({ id, label, type, placeholder }) => (
+                      <div key={id}>
+                        <p style={lbl}>{label}</p>
+                        <input type={type} value={profileForm[id as keyof UserProfile]}
+                          onChange={e => setProfileForm(p => ({ ...p, [id]: e.target.value }))}
+                          placeholder={placeholder} style={inp} disabled={isSavingProfile} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={lbl}>Bio</p>
+                    <textarea value={profileForm.bio}
+                      onChange={e => setProfileForm(p => ({ ...p, bio: e.target.value }))}
+                      placeholder="Tell us about yourself…" rows={3} disabled={isSavingProfile}
+                      style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button type="submit"
+                      className={btnClass('primary')}
+                      style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '8px 18px' })}
+                      disabled={isSavingProfile}>
+                      {isSavingProfile ? <span className="dot-loader"><span/><span/><span/></span> : 'Save changes'}
+                    </button>
+                    <button type="button"
+                      className={btnClass('ghost')}
+                      onClick={() => { setIsEditingProfile(false); setProfileForm(userProfile); setProfileError('') }}
+                      style={btn('#f1f5f9', '#64748b', { padding: '8px 18px' })} disabled={isSavingProfile}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px', padding: '16px', background: '#f8fafc', borderRadius: '12px' }}>
+                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: '20px', flexShrink: 0 }}>
+                      {(userProfile.full_name || username)[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>{userProfile.full_name || username}</p>
+                      <p style={{ fontSize: '13px', color: '#94a3b8' }}>{userProfile.occupation || 'No occupation set'}</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+                    {[
+                      { label: 'Phone', value: userProfile.phone },
+                      { label: 'Location', value: userProfile.location },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <p style={lbl}>{label}</p>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: value ? '#0f172a' : '#cbd5e1' }}>{value || 'Not set'}</p>
+                      </div>
+                    ))}
+                    <div>
+                      <p style={lbl}>Website</p>
+                      {userProfile.website
+                        ? <a href={userProfile.website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '14px', fontWeight: 500, color: '#6366f1', textDecoration: 'none' }}>Visit ↗</a>
+                        : <p style={{ fontSize: '14px', fontWeight: 500, color: '#cbd5e1' }}>Not set</p>}
+                    </div>
+                  </div>
+                  {userProfile.bio && (
+                    <div style={{ marginTop: '20px', paddingTop: '18px', borderTop: '1px solid #f1f5f9' }}>
+                      <p style={lbl}>Bio</p>
+                      <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.7, marginTop: '5px' }}>{userProfile.bio}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
