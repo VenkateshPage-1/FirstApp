@@ -1037,7 +1037,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         onMouseEnter={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'block' }}
                         onMouseLeave={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'none' }}>
                         <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#e2e8f0', color: '#64748b', fontSize: '10px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', marginBottom: '3px' }}>?</span>
-                        <div className="score-tooltip" style={{ display: 'none', position: 'absolute', bottom: '22px', left: '50%', transform: 'translateX(-50%)', width: '260px', background: '#1e293b', color: 'white', borderRadius: '12px', padding: '14px 16px', fontSize: '12px', lineHeight: 1.7, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', textAlign: 'left' }}>
+                        <div className="score-tooltip" style={{ display: 'none', position: 'absolute', top: '50%', left: '22px', transform: 'translateY(-50%)', width: '260px', background: '#1e293b', color: 'white', borderRadius: '12px', padding: '14px 16px', fontSize: '12px', lineHeight: 1.7, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', textAlign: 'left' }}>
                           <p style={{ fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>How it's calculated (out of 100)</p>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <span style={{ color: '#94a3b8' }}>💰 Savings Rate</span>
@@ -1072,7 +1072,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                             <span style={{ color: scoreColor, fontWeight: 700 }}>{healthScore}/100 · {scoreLabel}</span>
                           </div>
                           {/* Arrow */}
-                          <div style={{ position: 'absolute', bottom: '-6px', left: '50%', transform: 'translateX(-50%)', width: '12px', height: '12px', background: '#1e293b', borderRadius: '2px', rotate: '45deg' }} />
+                          <div style={{ position: 'absolute', top: '50%', left: '-6px', transform: 'translateY(-50%)', width: '12px', height: '12px', background: '#1e293b', borderRadius: '2px', rotate: '45deg' }} />
                         </div>
                       </div>
                     </div>
