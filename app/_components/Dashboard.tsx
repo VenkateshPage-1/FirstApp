@@ -464,24 +464,28 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
               {/* LEFT */}
               <div>
                 {/* Filter bar + add button */}
-                <div style={card({ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end', padding: '14px 18px' })}>
-                  <div>
-                    <p style={lbl}>Month</p>
-                    <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, width: 'auto' }} />
+                <div style={card({ padding: '14px 18px' })}>
+                  <div className="filter-bar">
+                    <div className="filter-fields">
+                      <div>
+                        <p style={lbl}>Month</p>
+                        <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, width: '100%' }} />
+                      </div>
+                      <div>
+                        <p style={lbl}>Category</p>
+                        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...inp, width: '100%' }}>
+                          <option>All</option>
+                          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setShowAddForm(v => !v); setEditingExpense(null); setForm(emptyForm); setConfirmDeleteId(null) }}
+                      className={btnClass('primary')}
+                      style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '10px 16px', borderRadius: '9px', width: '100%' })}>
+                      {showAddForm ? '✕ Cancel' : '+ Add expense'}
+                    </button>
                   </div>
-                  <div>
-                    <p style={lbl}>Category</p>
-                    <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...inp, width: 'auto' }}>
-                      <option>All</option>
-                      {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <button
-                    onClick={() => { setShowAddForm(v => !v); setEditingExpense(null); setForm(emptyForm); setConfirmDeleteId(null) }}
-                    className={btnClass('primary')}
-                    style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { marginLeft: 'auto', padding: '8px 16px', borderRadius: '9px' })}>
-                    {showAddForm ? '✕ Cancel' : '+ Add expense'}
-                  </button>
                 </div>
 
                 {/* Add / Edit form */}
@@ -580,18 +584,20 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
                             {/* Inline delete confirm — no blocking dialog */}
                             {confirmDeleteId === expense.id && (
-                              <div className="delete-confirm" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 13px', background: '#fef2f2', borderRadius: '0 0 10px 10px', border: '1px solid #fee2e2', borderTop: 'none', marginTop: '-4px' }}>
-                                <span style={{ fontSize: '13px', color: '#b91c1c', flex: 1 }}>Delete this expense?</span>
-                                <button onClick={() => handleDeleteExpense(expense.id)}
-                                  className={btnClass('danger')}
-                                  style={btn('#ef4444', 'white', { padding: '4px 12px', fontSize: '12px' })}>
-                                  Yes, delete
-                                </button>
-                                <button onClick={() => setConfirmDeleteId(null)}
-                                  className={btnClass('ghost')}
-                                  style={btn('#f1f5f9', '#64748b', { padding: '4px 12px', fontSize: '12px' })}>
-                                  Cancel
-                                </button>
+                              <div className="delete-confirm" style={{ padding: '10px 13px', background: '#fef2f2', borderRadius: '0 0 10px 10px', border: '1px solid #fee2e2', borderTop: 'none', marginTop: '-4px' }}>
+                                <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '8px' }}>Delete this expense?</p>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button onClick={() => handleDeleteExpense(expense.id)}
+                                    className={btnClass('danger')}
+                                    style={btn('#ef4444', 'white', { padding: '8px 12px', fontSize: '13px', flex: 1 })}>
+                                    Yes, delete
+                                  </button>
+                                  <button onClick={() => setConfirmDeleteId(null)}
+                                    className={btnClass('ghost')}
+                                    style={btn('#f1f5f9', '#64748b', { padding: '8px 12px', fontSize: '13px', flex: 1 })}>
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>

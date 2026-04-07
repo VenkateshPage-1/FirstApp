@@ -540,33 +540,47 @@ html { -webkit-text-size-adjust: 100%; }
   .hide-xs { display: none !important; }
 }
 
-/* ── Mobile card / input comfort ── */
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.filter-fields {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+}
+.filter-bar button {
+  width: auto !important;
+  flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
-  /* Cards breathe more */
-  .mobile-card-padding {
-    padding: 18px 16px !important;
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
   }
+  .filter-fields {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .filter-bar button {
+    width: 100% !important;
+    min-height: 46px;
+  }
+}
 
-  /* Inputs taller for easier tapping */
+/* ── Mobile input comfort ── */
+@media (max-width: 640px) {
+  /* Prevents iOS Safari from zooming in on input focus */
   input, select, textarea {
-    font-size: 16px !important; /* prevents iOS zoom on focus */
-    min-height: 44px;
-  }
-
-  /* Buttons taller */
-  .btn-primary, button[type="submit"] {
-    min-height: 48px;
-    font-size: 15px !important;
+    font-size: 16px !important;
   }
 
   /* More gap between form groups */
   .form-group {
-    margin-bottom: 18px;
-  }
-
-  /* Summary card text bigger */
-  .dash-summary .summary-value {
-    font-size: 22px !important;
+    margin-bottom: 20px;
   }
 }
 
