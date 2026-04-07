@@ -9,7 +9,9 @@ import DemoDashboard from '../_components/DemoDashboard'
 type View = 'loading' | 'login' | 'signup' | 'dashboard' | 'demo'
 
 export default function AppPage() {
-  const [view, setView] = useState<View>('loading')
+  // Start with login immediately — no blank loading screen
+  // Session check runs silently in background; if already logged in, transition to dashboard
+  const [view, setView] = useState<View>('login')
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const lastUser = useRef<string>('')
   const [animKey, setAnimKey] = useState(0)
@@ -25,15 +27,15 @@ export default function AppPage() {
         if (data.authenticated && data.user) {
           lastUser.current = data.user.username
           setCurrentUser(data.user.username)
-          setView('dashboard')
-        } else {
-          setView('login')
+          transitionTo('dashboard')
         }
+        // If not authenticated, we're already showing login — nothing to do
       } catch {
-        setView('login')
+        // Already showing login, ignore errors
       }
     }
     checkAuth()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const transitionTo = (next: View) => {
@@ -60,8 +62,6 @@ export default function AppPage() {
     setCurrentUser(null)
     transitionTo('login')
   }
-
-  if (view === 'loading') return <div className="auth-bg" />
 
   const pageClass = exiting ? 'page-exit' : 'page-enter'
 
