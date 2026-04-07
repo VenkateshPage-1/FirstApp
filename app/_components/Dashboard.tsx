@@ -25,7 +25,7 @@ const CAT_ICON: Record<string, string> = {
 interface DashboardProps { username: string; onLogout: () => void }
 interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
-interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number> }
 
 const emptyForm: ExpenseForm = {
   amount: '', category: 'Food', description: '',
@@ -34,8 +34,13 @@ const emptyForm: ExpenseForm = {
 }
 const emptyProfile: UserProfile = {
   full_name: '', bio: '', phone: '', location: '', website: '', occupation: '',
+  monthly_income: 0, savings_goal_pct: 20, category_budgets: {},
 }
-type Tab = 'expenses' | 'profile'
+type Tab = 'expenses' | 'analytics' | 'profile'
+
+// Financial categories classification
+const NEEDS_CATS = ['Food', 'Bills', 'Health']
+const WANTS_CATS = ['Transport', 'Shopping', 'Entertainment', 'Other']
 
 // Simple in-memory cache
 const cache: Record<string, { data: Expense[]; ts: number }> = {}
@@ -76,6 +81,13 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [profileError, setProfileError] = useState('')
   const [profileSuccess, setProfileSuccess] = useState('')
+
+  // Premium analytics setup state
+  const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=budgets
+  const [setupIncome, setSetupIncome] = useState('')
+  const [setupSavingsPct, setSetupSavingsPct] = useState('20')
+  const [setupBudgets, setSetupBudgets] = useState<Record<string, string>>({})
+  const [isSavingAnalytics, setIsSavingAnalytics] = useState(false)
 
   const isLoggingOut = useRef(false)
   const handleLogout = useCallback(async () => {
@@ -396,10 +408,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
           <span style={{ fontWeight: 800, fontSize: '17px', color: '#6366f1', letterSpacing: '-0.5px' }}>SpendWise</span>
           <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
-            {(['expenses', 'profile'] as Tab[]).map(t => (
+            {(['expenses', 'analytics', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
-                style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize' }}>
-                {t}
+                style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                {t === 'analytics' ? '✨ Analytics' : t}
               </button>
             ))}
           </div>
@@ -714,6 +726,321 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           </>
         )}
 
+        {/* ── ANALYTICS TAB ── */}
+        {tab === 'analytics' && (() => {
+          const income = userProfile.monthly_income ?? 0
+          const savingsGoal = userProfile.savings_goal_pct ?? 20
+          const catBudgets = userProfile.category_budgets ?? {}
+          const isSetup = income > 0
+
+          // Calculations
+          const savings = Math.max(0, income - totalThisMonth)
+          const savingsRate = income > 0 ? (savings / income) * 100 : 0
+          const needsTotal = expenses.filter(e => NEEDS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
+          const wantsTotal = expenses.filter(e => WANTS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
+          const needsPct = income > 0 ? (needsTotal / income) * 100 : 0
+          const wantsPct = income > 0 ? (wantsTotal / income) * 100 : 0
+          const savingsPct = income > 0 ? (savings / income) * 100 : 0
+
+          // Month-end forecast
+          const daysInMonth = new Date(filterYear, filterMonthNum, 0).getDate()
+          const dayOfMonth = filterMonth === new Date().toISOString().slice(0,7)
+            ? new Date().getDate() : daysInMonth
+          const dailyRate = dayOfMonth > 0 ? totalThisMonth / dayOfMonth : 0
+          const forecastTotal = dailyRate * daysInMonth
+          const forecastSavings = income > 0 ? Math.max(0, income - forecastTotal) : 0
+
+          // Payment split
+          const paymentTotals = PAYMENT_METHODS.reduce<Record<string,number>>((acc, m) => {
+            acc[m] = expenses.filter(e => (e.payment_method ?? 'Cash') === m).reduce((s,e) => s + e.amount, 0)
+            return acc
+          }, {})
+
+          // Financial health score (0-100)
+          const savingsScore = Math.min(40, (savingsRate / savingsGoal) * 40)
+          const budgetCats = CATEGORIES.filter(c => catBudgets[c] > 0)
+          const budgetScore = budgetCats.length > 0
+            ? (budgetCats.filter(c => {
+                const spent = expenses.filter(e => e.category === c).reduce((s,e) => s+e.amount,0)
+                return spent <= catBudgets[c]
+              }).length / budgetCats.length) * 40 : 20
+          const consistencyScore = Math.min(20, (expenses.length / 10) * 20)
+          const healthScore = Math.round(savingsScore + budgetScore + consistencyScore)
+          const scoreColor = healthScore >= 70 ? '#10b981' : healthScore >= 40 ? '#f59e0b' : '#ef4444'
+          const scoreLabel = healthScore >= 70 ? 'Excellent' : healthScore >= 40 ? 'Fair' : 'Needs Work'
+
+          const handleSaveAnalyticsSetup = async () => {
+            setIsSavingAnalytics(true)
+            const budgets: Record<string,number> = {}
+            CATEGORIES.forEach(c => { if (setupBudgets[c]) budgets[c] = Number(setupBudgets[c]) })
+            await fetch('/api/profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...userProfile,
+                monthly_income: Number(setupIncome),
+                savings_goal_pct: Number(setupSavingsPct),
+                category_budgets: budgets,
+              }),
+            })
+            setUserProfile(p => ({ ...p, monthly_income: Number(setupIncome), savings_goal_pct: Number(setupSavingsPct), category_budgets: budgets }))
+            setIsSavingAnalytics(false)
+          }
+
+          if (!isSetup) {
+            // ── SETUP FLOW ──
+            return (
+              <div style={{ maxWidth: '560px', margin: '0 auto' }}>
+                {/* Hero */}
+                <div style={{ ...card({ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', border: 'none', textAlign: 'center', padding: '32px 28px' }) }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
+                  <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>Unlock Premium Analytics</h2>
+                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
+                    Answer 3 quick questions to get your personal Financial Health Score, 50/30/20 rule tracker, savings forecast, and budget alerts.
+                  </p>
+                </div>
+
+                {/* Step indicator */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', justifyContent: 'center' }}>
+                  {['Income', 'Savings Goal', 'Category Budgets'].map((s, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: analyticsSetupStep >= i ? '#6366f1' : '#e2e8f0', color: analyticsSetupStep >= i ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>
+                        {analyticsSetupStep > i ? '✓' : i + 1}
+                      </div>
+                      <span style={{ fontSize: '12px', color: analyticsSetupStep >= i ? '#6366f1' : '#94a3b8', fontWeight: analyticsSetupStep >= i ? 600 : 400 }}>{s}</span>
+                      {i < 2 && <div style={{ width: '20px', height: '2px', background: analyticsSetupStep > i ? '#6366f1' : '#e2e8f0', borderRadius: '1px' }} />}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Step 0: Income */}
+                {analyticsSetupStep === 0 && (
+                  <div className="fade-in" style={card()}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>💰 What is your monthly take-home income?</h3>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>After tax. This is the foundation of every financial ratio — savings rate, budget allocation, everything.</p>
+                    <p style={lbl}>Monthly Income (₹)</p>
+                    <input type="number" value={setupIncome} onChange={e => setSetupIncome(e.target.value)} placeholder="e.g. 50000" style={{ ...inp, marginBottom: '20px' }} autoFocus />
+                    <button onClick={() => setupIncome && setAnalyticsSetupStep(1)}
+                      style={{ width: '100%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: setupIncome ? 1 : 0.5 }}>
+                      Continue →
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 1: Savings goal */}
+                {analyticsSetupStep === 1 && (
+                  <div className="fade-in" style={card()}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>🎯 What % of income do you want to save?</h3>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>Financial experts recommend saving at least <strong>20%</strong> (the 50/30/20 rule). Warren Buffett saves 50%+. Start with what's realistic for you.</p>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                      {['10', '20', '30', '40', '50'].map(p => (
+                        <button key={p} onClick={() => setSetupSavingsPct(p)}
+                          style={{ padding: '8px 16px', borderRadius: '8px', border: `2px solid ${setupSavingsPct === p ? '#6366f1' : '#e2e8f0'}`, background: setupSavingsPct === p ? '#eef2ff' : 'white', color: setupSavingsPct === p ? '#6366f1' : '#475569', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          {p}%
+                        </button>
+                      ))}
+                    </div>
+                    <p style={lbl}>Or enter custom %</p>
+                    <input type="number" min="1" max="100" value={setupSavingsPct} onChange={e => setSetupSavingsPct(e.target.value)} style={{ ...inp, marginBottom: '20px' }} />
+                    <p style={{ fontSize: '12px', color: '#10b981', marginBottom: '16px', fontWeight: 500 }}>
+                      💡 At ₹{Number(setupIncome).toLocaleString('en-IN')} income, saving {setupSavingsPct}% = ₹{Math.round(Number(setupIncome) * Number(setupSavingsPct) / 100).toLocaleString('en-IN')}/month
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => setAnalyticsSetupStep(0)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>← Back</button>
+                      <button onClick={() => setAnalyticsSetupStep(2)} style={{ flex: 2, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Continue →</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Category budgets */}
+                {analyticsSetupStep === 2 && (
+                  <div className="fade-in" style={card()}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>📦 Set monthly budget per category</h3>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '16px' }}>This enables budget vs actual alerts. Skip any category you don't want to track.</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                      {CATEGORIES.map(cat => (
+                        <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '18px', width: '24px', textAlign: 'center' }}>{CAT_ICON[cat]}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', width: '110px' }}>{cat}</span>
+                          <input type="number" min="0" value={setupBudgets[cat] ?? ''} onChange={e => setSetupBudgets(p => ({ ...p, [cat]: e.target.value }))}
+                            placeholder="₹ limit" style={{ ...inp, flex: 1 }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => setAnalyticsSetupStep(1)} style={{ flex: 1, background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>← Back</button>
+                      <button onClick={handleSaveAnalyticsSetup} disabled={isSavingAnalytics}
+                        style={{ flex: 2, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {isSavingAnalytics ? <span className="dot-loader"><span/><span/><span/></span> : '🚀 Unlock Analytics'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          // ── ANALYTICS DASHBOARD ──
+          return (
+            <div>
+              {/* Reconfigure link */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                <button onClick={() => { setSetupIncome(String(income)); setSetupSavingsPct(String(savingsGoal)); setSetupBudgets(Object.fromEntries(Object.entries(catBudgets).map(([k,v])=>[k,String(v)]))); setUserProfile(p => ({ ...p, monthly_income: 0 })) }}
+                  style={{ fontSize: '12px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ⚙️ Update settings
+                </button>
+              </div>
+
+              <div className="dash-grid">
+                {/* LEFT COLUMN */}
+                <div>
+                  {/* Financial Health Score */}
+                  <div style={card({ textAlign: 'center', padding: '28px 24px' })}>
+                    <p style={lbl}>Financial Health Score</p>
+                    <div style={{ position: 'relative', width: '120px', height: '120px', margin: '16px auto' }}>
+                      <svg viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="#f1f5f9" strokeWidth="10" />
+                        <circle cx="60" cy="60" r="50" fill="none" stroke={scoreColor} strokeWidth="10"
+                          strokeDasharray={`${(healthScore / 100) * 314} 314`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
+                      </svg>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '28px', fontWeight: 800, color: scoreColor }}>{healthScore}</span>
+                        <span style={{ fontSize: '11px', color: scoreColor, fontWeight: 600 }}>{scoreLabel}</span>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#94a3b8' }}>Based on savings rate, budget adherence &amp; consistency</p>
+                  </div>
+
+                  {/* 50/30/20 Rule */}
+                  <div style={card()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <p style={lbl}>50 / 30 / 20 Rule</p>
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>Elizabeth Warren</span>
+                    </div>
+                    {[
+                      { label: 'Needs', desc: 'Food, Bills, Health', actual: needsPct, target: 50, amount: needsTotal, color: '#6366f1' },
+                      { label: 'Wants', desc: 'Shopping, Entertainment…', actual: wantsPct, target: 30, amount: wantsTotal, color: '#8b5cf6' },
+                      { label: 'Savings', desc: 'What you keep', actual: savingsPct, target: 20, amount: savings, color: '#10b981' },
+                    ].map(({ label, desc, actual, target, amount, color }) => (
+                      <div key={label} style={{ marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <div>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{label}</span>
+                            <span style={{ fontSize: '11px', color: '#cbd5e1', marginLeft: '6px' }}>{desc}</span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: actual > target + 5 ? '#ef4444' : color }}>{actual.toFixed(0)}%</span>
+                            <span style={{ fontSize: '11px', color: '#cbd5e1', marginLeft: '4px' }}>/ {target}%</span>
+                          </div>
+                        </div>
+                        <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
+                          <div style={{ height: '100%', width: `${Math.min(actual, 100)}%`, background: actual > target + 5 ? '#ef4444' : color, borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                          <div style={{ position: 'absolute', top: 0, left: `${target}%`, width: '2px', height: '100%', background: '#94a3b8' }} />
+                        </div>
+                        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>₹{amount.toFixed(0)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Savings Rate */}
+                  <div style={card()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <p style={lbl}>Savings Rate</p>
+                        <p style={{ fontSize: '28px', fontWeight: 800, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444', letterSpacing: '-1px' }}>{savingsRate.toFixed(1)}%</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Goal: {savingsGoal}% · ₹{savings.toFixed(0)} saved</p>
+                      </div>
+                      <div style={{ padding: '6px 12px', borderRadius: '20px', background: savingsRate >= savingsGoal ? '#f0fdf4' : '#fef2f2', fontSize: '12px', fontWeight: 600, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444' }}>
+                        {savingsRate >= savingsGoal ? '✓ On track' : '↑ Needs attention'}
+                      </div>
+                    </div>
+                    <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
+                      <div style={{ height: '100%', width: `${Math.min(savingsRate, 100)}%`, background: savingsRate >= savingsGoal ? '#10b981' : '#f59e0b', borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                      <div style={{ position: 'absolute', top: 0, left: `${savingsGoal}%`, width: '2px', height: '100%', background: '#6366f1' }} />
+                    </div>
+                    <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>Buffett rule: save before you spend, not after</p>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div>
+                  {/* Month-end Forecast */}
+                  <div style={card()}>
+                    <p style={{ ...lbl, marginBottom: '12px' }}>Month-end Forecast</p>
+                    <p style={{ fontSize: '22px', fontWeight: 800, color: forecastTotal > income ? '#ef4444' : '#0f172a', letterSpacing: '-0.5px' }}>₹{forecastTotal.toFixed(0)}</p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>Projected spend · ₹{dailyRate.toFixed(0)}/day pace</p>
+                    {income > 0 && (
+                      <div style={{ padding: '10px 12px', borderRadius: '8px', background: forecastTotal > income ? '#fef2f2' : '#f0fdf4', fontSize: '12px', color: forecastTotal > income ? '#b91c1c' : '#065f46', fontWeight: 500 }}>
+                        {forecastTotal > income
+                          ? `⚠️ You'll overspend by ₹${(forecastTotal - income).toFixed(0)} this month`
+                          : `✅ Projected savings: ₹${forecastSavings.toFixed(0)}`}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Budget vs Actual */}
+                  {Object.keys(catBudgets).length > 0 && (
+                    <div style={card()}>
+                      <p style={{ ...lbl, marginBottom: '14px' }}>Budget vs Actual</p>
+                      {CATEGORIES.filter(c => catBudgets[c] > 0).map(cat => {
+                        const spent = expenses.filter(e => e.category === cat).reduce((s,e) => s + e.amount, 0)
+                        const budget = catBudgets[cat]
+                        const pct = (spent / budget) * 100
+                        const status = pct > 100 ? '#ef4444' : pct > 80 ? '#f59e0b' : '#10b981'
+                        return (
+                          <div key={cat} style={{ marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{CAT_ICON[cat]} {cat}</span>
+                              <span style={{ fontSize: '12px', color: status, fontWeight: 600 }}>₹{spent.toFixed(0)} / ₹{budget}</span>
+                            </div>
+                            <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: status, borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                            </div>
+                            <p style={{ fontSize: '10px', color: status, marginTop: '2px', fontWeight: 500 }}>
+                              {pct > 100 ? `Over by ₹${(spent - budget).toFixed(0)}` : `₹${(budget - spent).toFixed(0)} remaining`}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Payment method split */}
+                  <div style={card()}>
+                    <p style={{ ...lbl, marginBottom: '14px' }}>Payment Method Split</p>
+                    {PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).map(m => {
+                      const pct = totalThisMonth > 0 ? (paymentTotals[m] / totalThisMonth) * 100 : 0
+                      return (
+                        <div key={m} style={{ marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                            <span style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{PAYMENT_ICON[m]} {m}</span>
+                            <span style={{ fontSize: '12px', color: '#64748b' }}>₹{paymentTotals[m].toFixed(0)} · {pct.toFixed(0)}%</span>
+                          </div>
+                          <div style={{ height: '4px', background: '#f1f5f9', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: '#6366f1', borderRadius: '2px', transition: 'width 0.8s ease' }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {totalThisMonth === 0 && <p style={{ fontSize: '13px', color: '#cbd5e1' }}>No expenses this month</p>}
+                  </div>
+
+                  {/* Key insight */}
+                  <div style={card({ background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1px solid #e0e7ff' })}>
+                    <p style={{ ...lbl, color: '#6366f1', marginBottom: '10px' }}>💡 Expert Tip</p>
+                    {savingsRate < savingsGoal && income > 0
+                      ? <p style={{ fontSize: '13px', color: '#4338ca', lineHeight: 1.6 }}>You need to cut ₹{(totalThisMonth - (income * (1 - savingsGoal/100))).toFixed(0)} more this month to hit your {savingsGoal}% savings goal. Start with your top spending category: <strong>{byCategory[0]?.cat ?? 'Food'}</strong>.</p>
+                      : savingsRate >= savingsGoal
+                      ? <p style={{ fontSize: '13px', color: '#065f46', lineHeight: 1.6 }}>Great discipline! You're on track with your savings goal. Consider moving surplus to an index fund or FD for your future self.</p>
+                      : <p style={{ fontSize: '13px', color: '#4338ca', lineHeight: 1.6 }}>Add your income above to get personalised savings insights and recommendations.</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
           <div style={{ maxWidth: '640px' }}>
@@ -822,10 +1149,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
       {/* Mobile bottom nav — visible only on ≤640px */}
       <nav className="dash-bottom-nav">
-        {(['expenses', 'profile'] as Tab[]).map(t => (
+        {([['expenses','💸','Expenses'],['analytics','✨','Analytics'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? 'active' : ''}>
-            <span style={{ fontSize: '18px' }}>{t === 'expenses' ? '💸' : '👤'}</span>
-            <span style={{ textTransform: 'capitalize' }}>{t}</span>
+            <span style={{ fontSize: '18px' }}>{icon}</span>
+            <span>{label}</span>
           </button>
         ))}
       </nav>
