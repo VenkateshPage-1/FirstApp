@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import LoginForm from './_components/LoginForm'
 import SignupForm from './_components/SignupForm'
 import Dashboard from './_components/Dashboard'
+import DemoDashboard from './_components/DemoDashboard'
 
-type View = 'loading' | 'login' | 'signup' | 'dashboard'
+type View = 'loading' | 'login' | 'signup' | 'dashboard' | 'demo'
 
 export default function Home() {
   const [view, setView] = useState<View>('loading')
@@ -75,12 +76,24 @@ export default function Home() {
     )
   }
 
+  if (view === 'demo') {
+    return (
+      <div key={animKey} className={pageClass}>
+        <DemoDashboard
+          onSignup={() => transitionTo('signup')}
+          onLogin={() => transitionTo('login')}
+        />
+      </div>
+    )
+  }
+
   if (view === 'signup') {
     return (
       <div key={animKey} className={pageClass}>
         <SignupForm
           onSignup={handleLogin}
           onSwitchToLogin={() => transitionTo('login')}
+          onTryDemo={() => transitionTo('demo')}
         />
       </div>
     )
@@ -91,6 +104,7 @@ export default function Home() {
       <LoginForm
         onLogin={handleLogin}
         onSwitchToSignup={() => transitionTo('signup')}
+        onTryDemo={() => transitionTo('demo')}
       />
     </div>
   )
