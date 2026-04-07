@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import * as Sentry from '@sentry/nextjs'
+import { sendPaymentReceipt } from '@/lib/send-receipt'
 
-// Razorpay sends webhooks for async events (e.g. payment captured after bank delay)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
@@ -13,6 +14,7 @@ export async function POST(request: NextRequest) {
       .digest('hex')
 
     if (expectedSig !== signature) {
+      Sentry.captureMessage('Invalid webhook signature', { level: 'warning' })
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
@@ -54,6 +56,25 @@ export async function POST(request: NextRequest) {
           premium_until: premiumUntil.toISOString(),
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
+
+        // Send receipt email via webhook fallback
+        const { data: { user } } = await admin.auth.admin.getUserById(record.user_id)
+        if (user?.email) {
+          const { data: profile } = await admin
+            .from('user_profiles')
+            .select('full_name')
+            .eq('user_id', record.user_id)
+            .single()
+
+          await sendPaymentReceipt({
+            to: user.email,
+            name: profile?.full_name || user.email.split('@')[0],
+            plan: record.plan as 'quarterly' | 'annual',
+            amount: record.plan === 'annual' ? 29900 : 9900,
+            paymentId: paymentEntity.id,
+            premiumUntil: premiumUntil.toISOString(),
+          })
+        }
       }
     }
 
@@ -63,10 +84,16 @@ export async function POST(request: NextRequest) {
         status: 'failed',
         updated_at: new Date().toISOString(),
       }).eq('razorpay_order_id', orderId)
+
+      Sentry.captureMessage('Payment failed', {
+        level: 'warning',
+        extra: { orderId, entity: event.payload.payment.entity },
+      })
     }
 
     return NextResponse.json({ received: true })
   } catch (err) {
+    Sentry.captureException(err)
     console.error('Webhook error:', err)
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
   }

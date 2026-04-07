@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import * as Sentry from '@sentry/nextjs'
 import { getAuthenticatedUserId } from '@/lib/get-user-id'
+import { sendPaymentReceipt } from '@/lib/send-receipt'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,13 +16,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing payment details' }, { status: 400 })
     }
 
-    // Verify HMAC signature — this is the only proof of genuine Razorpay payment
+    // Verify HMAC signature — only proof of genuine Razorpay payment
     const body = `${razorpay_order_id}|${razorpay_payment_id}`
     const expectedSig = createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
       .update(body)
       .digest('hex')
 
     if (expectedSig !== razorpay_signature) {
+      Sentry.captureMessage('Invalid Razorpay signature', { level: 'warning', extra: { razorpay_order_id, userId } })
       return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 })
     }
 
@@ -65,8 +68,28 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 
+    // Fetch user email and name for receipt
+    const { data: { user } } = await admin.auth.admin.getUserById(userId)
+    if (user?.email) {
+      const { data: profile } = await admin
+        .from('user_profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single()
+
+      await sendPaymentReceipt({
+        to: user.email,
+        name: profile?.full_name || user.email.split('@')[0],
+        plan: payment.plan as 'quarterly' | 'annual',
+        amount: payment.plan === 'annual' ? 29900 : 9900,
+        paymentId: razorpay_payment_id,
+        premiumUntil: premiumUntil.toISOString(),
+      })
+    }
+
     return NextResponse.json({ success: true, premium_until: premiumUntil.toISOString() })
   } catch (err) {
+    Sentry.captureException(err)
     console.error('Verify error:', err)
     return NextResponse.json({ error: 'Verification failed' }, { status: 500 })
   }
