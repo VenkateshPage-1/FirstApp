@@ -1092,12 +1092,6 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           // ── ANALYTICS DASHBOARD ──
           const fmt = (n: number) => n >= 100000 ? `₹${(n/100000).toFixed(1)}L` : n >= 1000 ? `₹${(n/1000).toFixed(1)}K` : `₹${Math.round(n)}`
           const daysPct = Math.round((dayOfMonth / daysInMonth) * 100)
-          const scoreComponents = [
-            { label: 'Savings Rate', score: Math.round(savingsScore), max: 35, detail: `${savingsRate.toFixed(1)}% of ${savingsGoal}% goal`, color: '#10b981' },
-            { label: 'Budget Adherence', score: Math.round(budgetScore), max: 35, detail: budgetCats.length > 0 ? `${budgetCats.filter(c => expenses.filter(e=>e.category===c).reduce((s,e)=>s+e.amount,0) <= catBudgets[c]).length}/${budgetCats.length} cats on track` : 'No budgets set', color: '#6366f1' },
-            { label: 'Consistency', score: Math.round(consistencyScore), max: 15, detail: `${expenses.length} transactions`, color: '#8b5cf6' },
-            { label: 'EMI Health', score: emiHealthScore, max: 15, detail: `${emiPct.toFixed(0)}% of income`, color: '#f59e0b' },
-          ]
           return (
             <div>
               {/* ── HEADER ── */}
@@ -1181,7 +1175,36 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   <div style={card({ padding: '24px' })}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                       <div>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>Financial Health</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                          <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Financial Health</p>
+                          <div style={{ position: 'relative', display: 'inline-block' }}
+                            onMouseEnter={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'block' }}
+                            onMouseLeave={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'none' }}>
+                            <span style={{ width: '15px', height: '15px', borderRadius: '50%', background: '#e2e8f0', color: '#64748b', fontSize: '9px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}>?</span>
+                            <div className="score-tooltip" style={{ display: 'none', position: 'absolute', top: '0', left: '20px', width: '250px', background: '#1e293b', color: 'white', borderRadius: '12px', padding: '14px 16px', fontSize: '12px', lineHeight: 1.7, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', textAlign: 'left' }}>
+                              <p style={{ fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>Score breakdown (out of 100)</p>
+                              {[
+                                { label: '💰 Savings Rate', score: Math.round(savingsScore), max: 35, detail: `${savingsRate.toFixed(1)}% of ${savingsGoal}% goal` },
+                                { label: '📦 Budget Adherence', score: Math.round(budgetScore), max: 35, detail: budgetCats.length > 0 ? `${budgetCats.filter(c => expenses.filter(e=>e.category===c).reduce((s,e)=>s+e.amount,0) <= catBudgets[c]).length}/${budgetCats.length} on track` : 'No budgets set' },
+                                { label: '📝 Consistency', score: Math.round(consistencyScore), max: 15, detail: `${expenses.length} transactions` },
+                                { label: '🏦 EMI Health', score: emiHealthScore, max: 15, detail: `${emiPct.toFixed(0)}% of income` },
+                              ].map(({ label, score, max, detail }) => (
+                                <div key={label} style={{ marginBottom: '8px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#94a3b8' }}>{label}</span>
+                                    <span style={{ color: scoreColor, fontWeight: 600 }}>{score}/{max}</span>
+                                  </div>
+                                  <p style={{ color: '#64748b', fontSize: '11px' }}>{detail}</p>
+                                </div>
+                              ))}
+                              <div style={{ borderTop: '1px solid #334155', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Total</span>
+                                <span style={{ color: scoreColor, fontWeight: 700 }}>{healthScore}/100 · {scoreLabel}</span>
+                              </div>
+                              <div style={{ position: 'absolute', top: '8px', left: '-6px', width: '12px', height: '12px', background: '#1e293b', borderRadius: '2px', rotate: '45deg' }} />
+                            </div>
+                          </div>
+                        </div>
                         <p style={{ fontSize: '28px', fontWeight: 900, color: scoreColor, letterSpacing: '-1px', lineHeight: 1 }}>{healthScore}<span style={{ fontSize: '14px', fontWeight: 500, color: '#94a3b8' }}>/100</span></p>
                         <span style={{ display: 'inline-block', marginTop: '4px', background: healthScore >= 70 ? '#f0fdf4' : healthScore >= 40 ? '#fffbeb' : '#fef2f2', color: scoreColor, fontSize: '11px', fontWeight: 700, padding: '2px 10px', borderRadius: '20px' }}>{scoreLabel}</span>
                       </div>
@@ -1191,21 +1214,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                           strokeDasharray={`${(healthScore / 100) * 201} 201`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
                       </svg>
                     </div>
-                    {/* Score breakdown bars */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {scoreComponents.map(({ label, score, max, detail, color }) => (
-                        <div key={label}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>{label}</span>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color }}>{score}<span style={{ color: '#cbd5e1', fontWeight: 400 }}>/{max}</span></span>
-                          </div>
-                          <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${(score / max) * 100}%`, background: color, borderRadius: '3px', transition: 'width 1s ease' }} />
-                          </div>
-                          <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>{detail}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>Hover <strong>?</strong> on the label above for breakdown</p>
                   </div>
 
                   {/* Savings Rate */}
