@@ -14,6 +14,7 @@ export default function Home() {
   const [animKey, setAnimKey] = useState(0)
   const [exiting, setExiting] = useState(false)
   const pendingView = useRef<View | null>(null)
+  const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -36,14 +37,17 @@ export default function Home() {
 
   // Animate out current view, then swap in the new one
   const transitionTo = (next: View) => {
+    if (pendingView.current === next) return
+    if (transitionTimer.current) clearTimeout(transitionTimer.current)
     pendingView.current = next
     setExiting(true)
-    setTimeout(() => {
+    transitionTimer.current = setTimeout(() => {
       setExiting(false)
       setView(next)
       setAnimKey(k => k + 1)
       pendingView.current = null
-    }, 180) // matches pageOut duration
+      transitionTimer.current = null
+    }, 180)
   }
 
   const handleLogin = (username: string) => {

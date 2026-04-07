@@ -70,7 +70,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [profileError, setProfileError] = useState('')
   const [profileSuccess, setProfileSuccess] = useState('')
 
+  const isLoggingOut = useRef(false)
   const handleLogout = useCallback(async () => {
+    if (isLoggingOut.current) return
+    isLoggingOut.current = true
     await fetch('/api/auth/logout', { method: 'POST' })
     onLogout()
   }, [onLogout])
