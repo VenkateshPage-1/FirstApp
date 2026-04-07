@@ -46,7 +46,7 @@ type Tab = 'expenses' | 'analytics' | 'profile'
 const NEEDS_CATS = ['Food', 'Bills', 'Health']
 const WANTS_CATS = ['Transport', 'Shopping', 'Entertainment', 'Other']
 
-// Simple in-memory cache
+// Simple in-memory cache — keyed by userId so different users never share entries
 const cache: Record<string, { data: Expense[]; ts: number }> = {}
 
 export default function Dashboard({ username, onLogout }: DashboardProps) {
@@ -186,6 +186,11 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     }
   }, [resetInactivityTimer])
 
+  // On mount, evict any cache entries from other users
+  useEffect(() => {
+    Object.keys(cache).forEach(k => { if (!k.startsWith(`${username}__`)) delete cache[k] })
+  }, [username])
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
@@ -196,7 +201,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const cacheKey = `${filterMonth}__${filterCategory}`
+  const cacheKey = `${username}__${filterMonth}__${filterCategory}`
 
   const fetchExpenses = useCallback(async (force = false) => {
     // Serve from cache if fresh
