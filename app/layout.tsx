@@ -8,6 +8,11 @@ const inter = Inter({
   display: 'swap',
 })
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
+
 export const metadata: Metadata = {
   title: "SpendWise",
   description: "Track your daily expenses",

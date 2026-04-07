@@ -330,7 +330,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     return (
       <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter),sans-serif' }}>
         {/* Nav skeleton */}
-        <div style={{ background: 'white', borderBottom: '1px solid #f1f5f9', padding: '0 28px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="dash-nav" style={{ background: 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
             <div style={sk('100px', '20px', '6px')} />
             <div style={sk('160px', '28px', '8px')} />
@@ -342,9 +342,9 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           </div>
         </div>
 
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 28px' }}>
+        <div className="dash-content" style={{ maxWidth: '1280px', margin: '0 auto' }}>
           {/* Summary cards skeleton */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
+          <div className="dash-summary">
             {[1, 2, 3].map(i => (
               <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', border: '1px solid #f1f5f9' }}>
                 <div style={sk('60px', '11px', '4px')} />
@@ -354,7 +354,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
+          <div className="dash-grid">
             {/* Left column skeleton */}
             <div>
               <div style={{ background: 'white', borderRadius: '16px', padding: '14px 18px', border: '1px solid #f1f5f9', marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -424,10 +424,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
       )}
 
       {/* Sticky nav */}
-      <nav style={{ background: 'white', borderBottom: '1px solid #f1f5f9', padding: '0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px', position: 'sticky', top: 0, zIndex: 50 }}>
+      <nav className="dash-nav" style={{ background: 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
           <span style={{ fontWeight: 800, fontSize: '17px', color: '#6366f1', letterSpacing: '-0.5px' }}>SpendWise</span>
-          <div style={{ display: 'flex', gap: '2px' }}>
+          <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
             {(['expenses', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
                 style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize' }}>
@@ -440,24 +440,24 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '13px' }}>
             {username[0]?.toUpperCase()}
           </div>
-          <span style={{ fontSize: '13px', fontWeight: 500, color: '#475569' }}>{username}</span>
+          <span className="hide-xs" style={{ fontSize: '13px', fontWeight: 500, color: '#475569' }}>{username}</span>
           <button onClick={handleLogout} className={btnClass('danger')} style={btn('#fef2f2', '#ef4444', { border: '1px solid #fee2e2', padding: '5px 12px' })}>Sign out</button>
         </div>
       </nav>
 
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 28px' }}>
+      <div className="dash-content dash-scroll-area" style={{ maxWidth: '1280px', margin: '0 auto' }}>
 
         {/* ── EXPENSES TAB ── */}
         {tab === 'expenses' && (
           <>
             {/* Summary row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '20px' }}>
+            <div className="dash-summary">
               {[
                 { label: "Today", value: `₹${totalToday.toFixed(2)}`, accent: '#6366f1' },
                 { label: 'This month', value: `₹${totalThisMonth.toFixed(2)}`, accent: '#8b5cf6' },
                 { label: 'Transactions', value: String(expenses.length), accent: '#06b6d4' },
-              ].map(({ label, value, accent }) => (
-                <div key={label} style={card({ padding: '20px 24px' })}>
+              ].map(({ label, value, accent }, idx) => (
+                <div key={label} className={idx === 2 ? 'dash-summary-card-last' : ''} style={card({ padding: '20px 24px' })}>
                   <p style={lbl}>{label}</p>
                   <p style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', letterSpacing: '-1px', margin: '2px 0 0' }}>{value}</p>
                   <div style={{ height: '3px', background: accent, borderRadius: '2px', marginTop: '14px', width: '36px' }} />
@@ -472,7 +472,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
               <div className="alert-error fade-in" style={{ marginBottom: '12px' }}>{expenseError}</div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
+            <div className="dash-grid">
 
               {/* LEFT */}
               <div>
@@ -504,7 +504,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                       {editingExpense ? 'Edit expense' : 'New expense'}
                     </h3>
                     <form onSubmit={handleSaveExpense}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div className="expense-form-grid" style={{ display: 'grid', gap: '12px', marginBottom: '12px' }}>
                         <div>
                           <p style={lbl}>Amount (₹)</p>
                           <input type="number" min="0.01" step="0.01" value={form.amount}
@@ -560,7 +560,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         {expenses.map(expense => (
                           <div key={expense.id}>
                             <div
-                              className={`expense-row${deletingId === expense.id ? ' deleting' : ' adding'}`}
+                              className={`expense-row expense-row-inner${deletingId === expense.id ? ' deleting' : ' adding'}`}
                               style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', background: CAT_BG[expense.category] || '#f8fafc', borderRadius: '10px', border: `1px solid ${CAT_COLOR[expense.category]}22` }}>
                               <div style={{ width: '36px', height: '36px', borderRadius: '9px', background: CAT_COLOR[expense.category] || '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
                                 {CAT_ICON[expense.category] || '📦'}
@@ -699,7 +699,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 </div>
               ) : isEditingProfile ? (
                 <form onSubmit={handleSaveProfile}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                  <div className="profile-form-grid" style={{ display: 'grid', gap: '14px', marginBottom: '14px' }}>
                     {[
                       { id: 'full_name', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
                       { id: 'occupation', label: 'Occupation', type: 'text', placeholder: 'What do you do?' },
@@ -748,7 +748,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                       <p style={{ fontSize: '13px', color: '#94a3b8' }}>{userProfile.occupation || 'No occupation set'}</p>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+                  <div className="profile-form-grid" style={{ display: 'grid', gap: '18px' }}>
                     {[
                       { label: 'Phone', value: userProfile.phone },
                       { label: 'Location', value: userProfile.location },
@@ -777,6 +777,16 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           </div>
         )}
       </div>
+
+      {/* Mobile bottom nav — visible only on ≤640px */}
+      <nav className="dash-bottom-nav">
+        {(['expenses', 'profile'] as Tab[]).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={tab === t ? 'active' : ''}>
+            <span style={{ fontSize: '18px' }}>{t === 'expenses' ? '💸' : '👤'}</span>
+            <span style={{ textTransform: 'capitalize' }}>{t}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   )
 }
