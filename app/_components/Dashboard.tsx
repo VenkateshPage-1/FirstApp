@@ -26,7 +26,9 @@ interface DashboardProps { username: string; onLogout: () => void }
 interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
 interface EMI { id: string; name: string; amount: number; months_remaining: number }
-interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[] }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null }
+
+declare global { interface Window { Razorpay: new (opts: object) => { open(): void } } }
 
 const emptyForm: ExpenseForm = {
   amount: '', category: 'Food', description: '',
@@ -36,6 +38,7 @@ const emptyForm: ExpenseForm = {
 const emptyProfile: UserProfile = {
   full_name: '', bio: '', phone: '', location: '', website: '', occupation: '',
   monthly_income: 0, savings_goal_pct: 20, category_budgets: {}, emis: [],
+  is_premium: false, premium_until: null,
 }
 type Tab = 'expenses' | 'analytics' | 'profile'
 
@@ -83,6 +86,11 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [profileError, setProfileError] = useState('')
   const [profileSuccess, setProfileSuccess] = useState('')
 
+  // Payment state
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
+  const [selectedPlan, setSelectedPlan] = useState<'quarterly' | 'annual'>('annual')
+
   // Premium analytics setup state
   const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=emis, 3=budgets
   const [setupIncome, setSetupIncome] = useState('')
@@ -101,6 +109,63 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     await fetch('/api/auth/logout', { method: 'POST' })
     onLogout()
   }, [onLogout])
+
+  const loadRazorpayScript = (): Promise<boolean> => new Promise(resolve => {
+    if (window.Razorpay) { resolve(true); return }
+    const s = document.createElement('script')
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    s.onload = () => resolve(true)
+    s.onerror = () => resolve(false)
+    document.body.appendChild(s)
+  })
+
+  const handlePayment = useCallback(async (plan: 'quarterly' | 'annual') => {
+    setPaymentLoading(true)
+    setPaymentError('')
+    try {
+      const loaded = await loadRazorpayScript()
+      if (!loaded) { setPaymentError('Could not load payment gateway. Check your internet connection.'); setPaymentLoading(false); return }
+
+      const res = await fetch('/api/payment/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setPaymentError(data.error || 'Failed to create order'); setPaymentLoading(false); return }
+
+      const options = {
+        key: data.key_id,
+        amount: data.amount,
+        currency: data.currency,
+        name: 'SpendWise',
+        description: data.label,
+        order_id: data.order_id,
+        handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+          const verifyRes = await fetch('/api/payment/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(response),
+          })
+          const verifyData = await verifyRes.json()
+          if (verifyRes.ok) {
+            setUserProfile(p => ({ ...p, is_premium: true, premium_until: verifyData.premium_until }))
+            setPaymentLoading(false)
+          } else {
+            setPaymentError(verifyData.error || 'Payment verification failed. Contact support.')
+            setPaymentLoading(false)
+          }
+        },
+        modal: { ondismiss: () => setPaymentLoading(false) },
+        prefill: { name: userProfile.full_name || username },
+        theme: { color: '#6366f1' },
+      }
+      new window.Razorpay(options).open()
+    } catch {
+      setPaymentError('Payment failed. Please try again.')
+      setPaymentLoading(false)
+    }
+  }, [username, userProfile.full_name])
 
   const resetInactivityTimer = useCallback(() => {
     setShowInactivityWarning(false)
@@ -732,6 +797,70 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
         {/* ── ANALYTICS TAB ── */}
         {tab === 'analytics' && (() => {
+          // Premium gate
+          const isPremium = userProfile.is_premium && !!userProfile.premium_until && new Date(userProfile.premium_until) > new Date()
+          if (!isPremium) {
+            const planDetails = { quarterly: { price: '₹99', period: '3 months', saving: '' }, annual: { price: '₹299', period: '12 months', saving: 'Save 25%' } }
+            return (
+              <div style={{ maxWidth: '520px', margin: '0 auto' }}>
+                {/* Hero */}
+                <div style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: '16px', padding: '32px 28px', textAlign: 'center', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '44px', marginBottom: '12px' }}>📊</div>
+                  <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>SpendWise Premium</h2>
+                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>
+                    Financial Health Score · 50/30/20 Tracker · EMI Impact · Budget Alerts · Month-end Forecast
+                  </p>
+                </div>
+
+                {/* Plan selector */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                  {(['quarterly', 'annual'] as const).map(p => {
+                    const { price, period, saving } = planDetails[p]
+                    const active = selectedPlan === p
+                    return (
+                      <button key={p} onClick={() => setSelectedPlan(p)} style={{ border: `2px solid ${active ? '#6366f1' : '#e2e8f0'}`, borderRadius: '12px', padding: '16px 12px', background: active ? '#f5f3ff' : 'white', cursor: 'pointer', textAlign: 'center', position: 'relative', transition: 'all 0.2s' }}>
+                        {saving && <span style={{ position: 'absolute', top: '-10px', right: '10px', background: '#10b981', color: 'white', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>{saving}</span>}
+                        <p style={{ fontWeight: 700, fontSize: '18px', color: active ? '#6366f1' : '#1e293b', margin: '0 0 2px' }}>{price}</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>{period}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Features list */}
+                <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '16px 20px', marginBottom: '16px' }}>
+                  {[
+                    '✅ Financial Health Score (0–100)',
+                    '✅ 50/30/20 Rule tracker',
+                    '✅ EMI-aware calculations',
+                    '✅ Category budget vs actual',
+                    '✅ Month-end spending forecast',
+                    '✅ Payment method breakdown',
+                    '✅ Savings insights & alerts',
+                  ].map(f => (
+                    <p key={f} style={{ fontSize: '13px', color: '#475569', margin: '0 0 8px', lineHeight: 1.5 }}>{f}</p>
+                  ))}
+                </div>
+
+                {paymentError && <div className="alert-error" style={{ marginBottom: '12px' }}>{paymentError}</div>}
+
+                <button
+                  onClick={() => handlePayment(selectedPlan)}
+                  disabled={paymentLoading}
+                  style={{ width: '100%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '15px', fontWeight: 700, cursor: paymentLoading ? 'not-allowed' : 'pointer', opacity: paymentLoading ? 0.7 : 1 }}
+                >
+                  {paymentLoading
+                    ? <span className="dot-loader"><span/><span/><span/></span>
+                    : `Pay ${planDetails[selectedPlan].price} with Razorpay`}
+                </button>
+
+                <p style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginTop: '12px' }}>
+                  Secured by Razorpay · UPI, Cards, Net Banking accepted
+                </p>
+              </div>
+            )
+          }
+
           const income = userProfile.monthly_income ?? 0
           const savingsGoal = userProfile.savings_goal_pct ?? 20
           const catBudgets = userProfile.category_budgets ?? {}

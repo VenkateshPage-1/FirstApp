@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     const userId = await getAuthenticatedUserId(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    // Note: is_premium and premium_until are managed by payment flow only — never overwritten here
     const { full_name, bio, phone, location, website, occupation, monthly_income, savings_goal_pct, category_budgets, emis } = await request.json()
 
     const admin = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
