@@ -89,7 +89,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   // Payment state
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState('')
-  const [selectedPlan, setSelectedPlan] = useState<'quarterly' | 'annual'>('annual')
+  const [selectedPlan, setSelectedPlan] = useState<'quarterly' | 'annual'>('quarterly')
   const [telegramCode, setTelegramCode] = useState<string | null>(null)
   const [telegramBotUsername, setTelegramBotUsername] = useState('')
   const [telegramLoading, setTelegramLoading] = useState(false)
@@ -809,7 +809,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           // Premium gate
           const isPremium = userProfile.is_premium && !!userProfile.premium_until && new Date(userProfile.premium_until) > new Date()
           if (!isPremium) {
-            const planDetails = { quarterly: { price: '₹99', period: '3 months', perMonth: '₹33/mo', saving: '' }, annual: { price: '₹299', period: '12 months', perMonth: '₹25/mo', saving: 'Best Value' } }
+            const planDetails = { quarterly: { price: '₹99', period: 'per quarter', perMonth: '₹33/mo', saving: 'Most Popular' }, annual: { price: '₹299', period: 'per year', perMonth: '₹25/mo', saving: 'Save 25%' } }
             return (
               <div style={{ maxWidth: '480px', margin: '0 auto', padding: '8px 0' }}>
 
