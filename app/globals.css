@@ -519,6 +519,12 @@ html { -webkit-text-size-adjust: 100%; }
     flex-wrap: nowrap;
     gap: 0;
     overflow: visible;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100vw;
+  }
+  .dash-nav > div:first-child {
+    gap: 0 !important;
   }
 
   .dash-content {
