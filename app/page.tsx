@@ -59,7 +59,7 @@ export default function LandingPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#0f172a;-webkit-font-smoothing:antialiased}
         .nav-link{color:#94a3b8;text-decoration:none;font-size:14px;font-weight:500;transition:color .15s}
@@ -82,7 +82,7 @@ export default function LandingPage() {
           .footer-inner{flex-direction:column;gap:24px;text-align:center}
           .footer-links{justify-content:center!important}
         }
-      `}</style>
+      ` }} />
 
       {/* ── NAV ── */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(9,10,15,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 32px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
