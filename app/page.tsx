@@ -46,7 +46,7 @@ const features = [
 ]
 
 const faqs = [
-  { q: 'Is TrackPenny free to use?', a: 'Yes. Expense tracking, monthly reports, and category breakdown are completely free forever. Premium analytics are ₹99/quarter or ₹299/year.' },
+  { q: 'Is TrackPenny free to use?', a: 'Yes. Expense tracking, monthly reports, and category breakdown are completely free forever. Premium analytics are ₹99/quarter — one simple plan.' },
   { q: 'Is my financial data safe?', a: 'All data is encrypted and stored securely. We use HttpOnly cookies and never expose your session tokens. We never sell your data.' },
   { q: 'Does it support UPI payments?', a: 'Yes. Tag each expense with PhonePe, GPay, Bank Transfer, or Cash — so you see exactly which method you overspend on.' },
   { q: 'Can I track EMIs and loans?', a: 'Yes. The premium EMI tracker lets you add all loans with months remaining. TrackPenny factors these into your disposable income and health score.' },
@@ -245,7 +245,7 @@ export default function LandingPage() {
               <div style={{ position: 'absolute', top: '-13px', left: '28px', background: '#7c3aed', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 12px', borderRadius: '20px' }}>MOST POPULAR</div>
               <p style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px', color: '#7c3aed' }}>Premium</p>
               <p style={{ fontSize: '40px', fontWeight: 900, color: '#0f172a', letterSpacing: '-2px', marginBottom: '4px' }}>₹99</p>
-              <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '24px' }}>per quarter · or ₹299/year (save 25%)</p>
+              <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '24px' }}>per quarter · one plan · no hidden fees</p>
               <div style={{ borderTop: '1px solid #e9d5ff', paddingTop: '20px' }}>
                 {['Everything in Free', 'Financial Health Score', '50/30/20 rule tracker', 'EMI tracker & analysis', 'Category budget alerts', 'Month-end forecast'].map(f => (
                   <p key={f} style={{ fontSize: '14px', color: '#475569', marginBottom: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>

@@ -89,7 +89,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   // Payment state
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState('')
-  const [selectedPlan, setSelectedPlan] = useState<'quarterly' | 'annual'>('quarterly')
+  const [selectedPlan] = useState<'quarterly'>('quarterly')
   const [telegramCode, setTelegramCode] = useState<string | null>(null)
   const [telegramBotUsername, setTelegramBotUsername] = useState('')
   const [telegramLoading, setTelegramLoading] = useState(false)
@@ -810,41 +810,23 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           const isPremium = userProfile.is_premium && !!userProfile.premium_until && new Date(userProfile.premium_until) > new Date()
           if (!isPremium) {
             return (
-              <div style={{ maxWidth: '440px', margin: '0 auto', padding: '8px 0' }}>
+              <div style={{ maxWidth: '420px', margin: '0 auto', padding: '8px 0' }}>
 
                 {/* Dark hero card */}
                 <div style={{ background: 'linear-gradient(145deg,#0f172a 0%,#1e1b4b 100%)', borderRadius: '20px', padding: '36px 28px 28px', textAlign: 'center', marginBottom: '16px', border: '1px solid rgba(139,92,246,0.25)', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)', width: '200px', height: '200px', background: 'radial-gradient(circle,rgba(139,92,246,0.3) 0%,transparent 70%)', pointerEvents: 'none' }} />
                   <div style={{ fontSize: '36px', marginBottom: '14px', position: 'relative' }}>✨</div>
-                  <div style={{ display: 'inline-block', background: '#7c3aed', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 12px', borderRadius: '20px', marginBottom: '12px', position: 'relative' }}>MOST POPULAR</div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#f1f5f9', marginBottom: '6px', letterSpacing: '-0.5px', position: 'relative' }}>TrackPenny Premium</h2>
-                  {/* Pricing — same as homepage */}
-                  <div style={{ margin: '16px 0 4px', position: 'relative' }}>
-                    <span style={{ fontSize: '48px', fontWeight: 900, color: '#fff', letterSpacing: '-2px' }}>₹99</span>
+                  <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#f1f5f9', marginBottom: '16px', letterSpacing: '-0.5px', position: 'relative' }}>TrackPenny Premium</h2>
+                  <div style={{ margin: '0 0 6px', position: 'relative' }}>
+                    <span style={{ fontSize: '52px', fontWeight: 900, color: '#fff', letterSpacing: '-2px' }}>₹99</span>
+                    <span style={{ fontSize: '15px', color: '#94a3b8', marginLeft: '6px' }}>/ quarter</span>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px', position: 'relative' }}>per quarter · or <strong style={{ color: '#c4b5fd' }}>₹299/year</strong> (save 25%)</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '18px', position: 'relative' }}>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px', position: 'relative' }}>One plan · All analytics · No hidden fees</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', position: 'relative' }}>
                     {['Health Score', '50/30/20', 'Budget Drums', 'Forecast', 'EMI Tracker'].map(f => (
                       <span key={f} style={{ fontSize: '11px', fontWeight: 600, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', padding: '4px 10px', borderRadius: '20px' }}>{f}</span>
                     ))}
                   </div>
-                </div>
-
-                {/* Plan toggle */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-                  {([
-                    { key: 'quarterly' as const, label: '₹99 / quarter', sub: '₹33 per month', badge: false },
-                    { key: 'annual' as const, label: '₹299 / year', sub: 'Save 25%', badge: true },
-                  ]).map(({ key, label, sub, badge }) => {
-                    const active = selectedPlan === key
-                    return (
-                      <button key={key} onClick={() => setSelectedPlan(key)} style={{ position: 'relative', border: `2px solid ${active ? '#8b5cf6' : '#e2e8f0'}`, borderRadius: '14px', padding: '16px 12px', background: active ? 'linear-gradient(145deg,#faf5ff,#ede9fe)' : 'white', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: active ? '0 0 0 4px rgba(139,92,246,0.12)' : 'none' }}>
-                        {badge && <span style={{ position: 'absolute', top: '-10px', right: '8px', background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', fontSize: '10px', fontWeight: 800, padding: '3px 9px', borderRadius: '20px' }}>Save 25%</span>}
-                        <p style={{ fontWeight: 800, fontSize: '14px', color: active ? '#7c3aed' : '#1e293b', margin: '0 0 3px' }}>{label}</p>
-                        <p style={{ fontSize: '11px', color: active ? '#8b5cf6' : '#94a3b8', margin: 0 }}>{sub}</p>
-                      </button>
-                    )
-                  })}
                 </div>
 
                 {/* Features list */}
@@ -874,7 +856,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 >
                   {paymentLoading
                     ? <span className="dot-loader"><span/><span/><span/></span>
-                    : `Upgrade to Premium — ${selectedPlan === 'quarterly' ? '₹99' : '₹299'}`}
+                    : 'Upgrade to Premium — ₹99'}
                 </button>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '12px' }}>
