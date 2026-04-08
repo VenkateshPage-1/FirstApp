@@ -482,9 +482,11 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
       )}
 
       {/* Sticky nav */}
-      <nav className="dash-nav" style={{ background: 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
+      <nav className="dash-nav" style={{ background: 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50, paddingRight: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <span style={{ fontWeight: 800, fontSize: '17px', color: '#6366f1', letterSpacing: '-0.5px' }}>TrackPenny</span>
+          <span style={{ fontWeight: 800, fontSize: '17px', letterSpacing: '-0.5px' }}>
+            <span style={{ color: '#0f172a' }}>Track</span><span style={{ color: '#6366f1' }}>Penny</span>
+          </span>
           <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
             {(['expenses', 'analytics', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
