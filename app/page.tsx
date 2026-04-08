@@ -98,20 +98,21 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ background: 'linear-gradient(180deg,#09090f 0%,#0d0a1a 100%)', padding: 'clamp(64px,10vw,120px) 24px clamp(64px,10vw,100px)', textAlign: 'center' }}>
+      <section style={{ background: 'linear-gradient(180deg,#09090f 0%,#0d0a1a 100%)', padding: 'clamp(56px,9vw,110px) 24px clamp(56px,9vw,96px)', textAlign: 'center' }}>
         <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', fontSize: '13px', fontWeight: 600, padding: '6px 16px', borderRadius: '20px', marginBottom: '28px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#a78bfa', display: 'inline-block' }} />
-            Built for India · Free to start
+          {/* Badge */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80', fontSize: '13px', fontWeight: 600, padding: '6px 16px', borderRadius: '20px', marginBottom: '28px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 6px #4ade80' }} />
+            Log expenses without opening the app
           </div>
 
-          <h1 style={{ fontSize: 'clamp(36px,7vw,64px)', fontWeight: 900, lineHeight: 1.1, color: '#fff', letterSpacing: '-2px', marginBottom: '24px' }}>
-            Know exactly where<br />
-            <span style={{ color: '#a78bfa' }}>your money goes</span>
+          <h1 style={{ fontSize: 'clamp(34px,7vw,62px)', fontWeight: 900, lineHeight: 1.1, color: '#fff', letterSpacing: '-2px', marginBottom: '24px' }}>
+            Type it on Telegram.<br />
+            <span style={{ color: '#a78bfa' }}>Done in a second.</span>
           </h1>
 
-          <p style={{ fontSize: 'clamp(15px,2.5vw,19px)', color: '#94a3b8', lineHeight: 1.7, maxWidth: '580px', margin: '0 auto 40px' }}>
-            TrackPenny is a free expense tracker built for how Indians spend — with UPI tagging, EMI tracking, and a Financial Health Score that tells you the truth about your finances.
+          <p style={{ fontSize: 'clamp(15px,2.5vw,18px)', color: '#94a3b8', lineHeight: 1.7, maxWidth: '560px', margin: '0 auto 40px' }}>
+            Send <strong style={{ color: '#e2e8f0' }}>"450 swiggy food"</strong> to our Telegram bot — it lands in your dashboard instantly. No app, no login, no hassle.
           </p>
 
           <div className="hero-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -124,51 +125,28 @@ export default function LandingPage() {
           </div>
 
           <p style={{ marginTop: '20px', fontSize: '12px', color: '#475569' }}>
-            No credit card · No app download · Works on mobile
+            No credit card · No app download · Works on any phone
           </p>
         </div>
 
-        {/* Dashboard preview mockup */}
-        <div style={{ maxWidth: '860px', margin: '56px auto 0', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '20px', backdropFilter: 'blur(4px)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '12px' }}>
-            {[
-              { label: 'Total this month', value: '₹24,380', color: '#ef4444' },
-              { label: 'Savings', value: '₹5,620', color: '#10b981' },
-              { label: 'Health Score', value: '74 / 100', color: '#a78bfa' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '16px' }}>
-                <p style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>{label}</p>
-                <p style={{ fontSize: 'clamp(16px,3vw,22px)', fontWeight: 800, color }}>{value}</p>
-              </div>
-            ))}
+        {/* Telegram → Dashboard image */}
+        <div style={{ maxWidth: '820px', margin: '56px auto 0' }}>
+          <div style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15)' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/My First Board.jpg"
+              alt="Send expense on Telegram — appears in TrackPenny instantly"
+              style={{ width: '100%', display: 'block', borderRadius: '20px' }}
+            />
+            {/* Glow overlay at bottom */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '80px', background: 'linear-gradient(transparent, rgba(9,9,15,0.8))', borderRadius: '0 0 20px 20px' }} />
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '16px' }}>
-            <p style={{ fontSize: '11px', color: '#64748b', marginBottom: '10px' }}>Spending by category</p>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {[
-                { cat: 'Food', pct: 38, color: '#f97316' },
-                { cat: 'Bills', pct: 24, color: '#ec4899' },
-                { cat: 'Transport', pct: 16, color: '#06b6d4' },
-                { cat: 'Shopping', pct: 14, color: '#8b5cf6' },
-                { cat: 'Other', pct: 8, color: '#94a3b8' },
-              ].map(({ cat, pct, color }) => (
-                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
-                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>{cat} {pct}%</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: '4px', marginTop: '10px', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-              {[
-                { pct: 38, color: '#f97316' },
-                { pct: 24, color: '#ec4899' },
-                { pct: 16, color: '#06b6d4' },
-                { pct: 14, color: '#8b5cf6' },
-                { pct: 8, color: '#94a3b8' },
-              ].map(({ pct, color }, i) => (
-                <div key={i} style={{ flex: pct, background: color }} />
-              ))}
-            </div>
+          {/* Caption */}
+          <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>✈️</span>
+            <p style={{ fontSize: '14px', color: '#64748b', fontStyle: 'italic' }}>
+              Message on Telegram → expense saved → visible in your dashboard in under a second
+            </p>
           </div>
         </div>
       </section>
