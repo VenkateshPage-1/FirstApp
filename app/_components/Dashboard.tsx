@@ -1227,47 +1227,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     </p>
                   </div>
 
-                  {/* Where is your money going */}
-                  <div style={card({ padding: '20px 24px' })}>
-                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Where is your money going?</p>
-                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
-                      The ideal split is: <strong>50%</strong> on essentials, <strong>30%</strong> on lifestyle, <strong>20%</strong> on savings.
-                    </p>
-                    <div style={{ display: 'flex', height: '12px', borderRadius: '6px', overflow: 'hidden', marginBottom: '14px', gap: '2px' }}>
-                      <div style={{ flex: needsPct, background: '#6366f1', minWidth: needsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease', borderRadius: '6px 0 0 6px' }} />
-                      <div style={{ flex: wantsPct, background: '#8b5cf6', minWidth: wantsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
-                      <div style={{ flex: Math.max(savingsPct, 0), background: '#10b981', minWidth: savingsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease', borderRadius: '0 6px 6px 0' }} />
-                    </div>
-                    {[
-                      { label: 'Essentials', desc: 'Food, Bills, Health', actual: needsPct, target: 50, amount: needsTotal, color: '#6366f1', tip: needsPct > 55 ? 'Too high — try cutting food or utility bills' : needsPct <= 50 ? 'Within the ideal limit' : 'Slightly above, keep an eye on it' },
-                      { label: 'Lifestyle', desc: 'Shopping, Entertainment, Transport', actual: wantsPct, target: 30, amount: wantsTotal, color: '#8b5cf6', tip: wantsPct > 35 ? 'Reduce shopping or outings to save more' : 'Good — lifestyle spending is in control' },
-                      { label: 'Savings', desc: 'Money you kept this month', actual: savingsPct, target: 20, amount: savings, color: '#10b981', tip: savingsPct >= 20 ? 'Great! You hit the 20% savings target' : 'Aim for at least 20% — small cuts add up' },
-                    ].map(({ label, desc, actual, target, amount, color, tip }) => (
-                      <div key={label} style={{ padding: '10px 12px', borderRadius: '10px', background: '#f8fafc', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0, marginTop: '2px' }} />
-                            <div>
-                              <p style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>{label}</p>
-                              <p style={{ fontSize: '11px', color: '#94a3b8' }}>{desc}</p>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <p style={{ fontSize: '14px', fontWeight: 800, color: actual > target + 5 ? '#ef4444' : color }}>{actual.toFixed(0)}%</p>
-                            <p style={{ fontSize: '10px', color: '#94a3b8' }}>ideal: {target}%</p>
-                          </div>
-                        </div>
-                        <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', paddingLeft: '18px' }}>{fmt(amount)} · {tip}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                </div>
-
-                {/* ── RIGHT COLUMN ── */}
-                <div>
-
-                  {/* Will you overspend */}
+                  {/* Will you overspend — moved to left */}
                   <div style={card({ padding: '20px 24px' })}>
                     <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Will you overspend this month?</p>
                     <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
@@ -1295,7 +1255,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     )}
                   </div>
 
-                  {/* Spending limits — glass drum */}
+                  {/* Spending limits — glass drum — moved to left for more width */}
                   {Object.keys(catBudgets).length > 0 && (
                     <div style={{ ...card({ padding: '24px 28px' }), background: 'linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%)', border: '1px solid rgba(139,92,246,0.18)' }}>
                       <p style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '4px' }}>Budget vs Actual Spending</p>
@@ -1385,6 +1345,46 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                       })}
                     </div>
                   )}
+
+                </div>
+
+                {/* ── RIGHT COLUMN ── */}
+                <div>
+
+                  {/* Where is your money going */}
+                  <div style={card({ padding: '20px 24px' })}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Where is your money going?</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
+                      The ideal split is: <strong>50%</strong> on essentials, <strong>30%</strong> on lifestyle, <strong>20%</strong> on savings.
+                    </p>
+                    <div style={{ display: 'flex', height: '12px', borderRadius: '6px', overflow: 'hidden', marginBottom: '14px', gap: '2px' }}>
+                      <div style={{ flex: needsPct, background: '#6366f1', minWidth: needsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease', borderRadius: '6px 0 0 6px' }} />
+                      <div style={{ flex: wantsPct, background: '#8b5cf6', minWidth: wantsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
+                      <div style={{ flex: Math.max(savingsPct, 0), background: '#10b981', minWidth: savingsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease', borderRadius: '0 6px 6px 0' }} />
+                    </div>
+                    {[
+                      { label: 'Essentials', desc: 'Food, Bills, Health', actual: needsPct, target: 50, amount: needsTotal, color: '#6366f1', tip: needsPct > 55 ? 'Too high — try cutting food or utility bills' : needsPct <= 50 ? 'Within the ideal limit' : 'Slightly above, keep an eye on it' },
+                      { label: 'Lifestyle', desc: 'Shopping, Entertainment, Transport', actual: wantsPct, target: 30, amount: wantsTotal, color: '#8b5cf6', tip: wantsPct > 35 ? 'Reduce shopping or outings to save more' : 'Good — lifestyle spending is in control' },
+                      { label: 'Savings', desc: 'Money you kept this month', actual: savingsPct, target: 20, amount: savings, color: '#10b981', tip: savingsPct >= 20 ? 'Great! You hit the 20% savings target' : 'Aim for at least 20% — small cuts add up' },
+                    ].map(({ label, desc, actual, target, amount, color, tip }) => (
+                      <div key={label} style={{ padding: '10px 12px', borderRadius: '10px', background: '#f8fafc', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0, marginTop: '2px' }} />
+                            <div>
+                              <p style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>{label}</p>
+                              <p style={{ fontSize: '11px', color: '#94a3b8' }}>{desc}</p>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: '14px', fontWeight: 800, color: actual > target + 5 ? '#ef4444' : color }}>{actual.toFixed(0)}%</p>
+                            <p style={{ fontSize: '10px', color: '#94a3b8' }}>ideal: {target}%</p>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', paddingLeft: '18px' }}>{fmt(amount)} · {tip}</p>
+                      </div>
+                    ))}
+                  </div>
 
                   {/* Loan payments */}
                   {emis.length > 0 && (
