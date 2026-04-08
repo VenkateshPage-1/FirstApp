@@ -809,45 +809,58 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           // Premium gate
           const isPremium = userProfile.is_premium && !!userProfile.premium_until && new Date(userProfile.premium_until) > new Date()
           if (!isPremium) {
-            const planDetails = { quarterly: { price: '₹99', period: '3 months', saving: '' }, annual: { price: '₹299', period: '12 months', saving: 'Save 25%' } }
+            const planDetails = { quarterly: { price: '₹99', period: '3 months', perMonth: '₹33/mo', saving: '' }, annual: { price: '₹299', period: '12 months', perMonth: '₹25/mo', saving: 'Best Value' } }
             return (
-              <div style={{ maxWidth: '520px', margin: '0 auto' }}>
-                {/* Hero */}
-                <div style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: '16px', padding: '32px 28px', textAlign: 'center', marginBottom: '20px' }}>
-                  <div style={{ fontSize: '44px', marginBottom: '12px' }}>📊</div>
-                  <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>TrackPenny Premium</h2>
-                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>
-                    Financial Health Score · 50/30/20 Tracker · EMI Impact · Budget Alerts · Month-end Forecast
+              <div style={{ maxWidth: '480px', margin: '0 auto', padding: '8px 0' }}>
+
+                {/* Dark hero card */}
+                <div style={{ background: 'linear-gradient(145deg,#0f172a 0%,#1e1b4b 100%)', borderRadius: '20px', padding: '36px 28px 28px', textAlign: 'center', marginBottom: '16px', border: '1px solid rgba(139,92,246,0.25)', position: 'relative', overflow: 'hidden' }}>
+                  {/* Glow orb */}
+                  <div style={{ position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)', width: '200px', height: '200px', background: 'radial-gradient(circle,rgba(139,92,246,0.3) 0%,transparent 70%)', pointerEvents: 'none' }} />
+                  <div style={{ fontSize: '36px', marginBottom: '14px', position: 'relative' }}>✨</div>
+                  <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#f1f5f9', marginBottom: '6px', letterSpacing: '-0.5px', position: 'relative' }}>TrackPenny Premium</h2>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.7, position: 'relative' }}>
+                    Unlock deep insights into your money.<br />Know exactly where it goes — and how to keep more.
                   </p>
+                  {/* Feature pills */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '20px', position: 'relative' }}>
+                    {['Health Score', '50/30/20', 'Budget Drums', 'Forecast', 'EMI Tracker'].map(f => (
+                      <span key={f} style={{ fontSize: '11px', fontWeight: 600, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', padding: '4px 10px', borderRadius: '20px' }}>{f}</span>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Plan selector */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
                   {(['quarterly', 'annual'] as const).map(p => {
-                    const { price, period, saving } = planDetails[p]
+                    const { price, period, perMonth, saving } = planDetails[p]
                     const active = selectedPlan === p
                     return (
-                      <button key={p} onClick={() => setSelectedPlan(p)} style={{ border: `2px solid ${active ? '#6366f1' : '#e2e8f0'}`, borderRadius: '12px', padding: '16px 12px', background: active ? '#f5f3ff' : 'white', cursor: 'pointer', textAlign: 'center', position: 'relative', transition: 'all 0.2s' }}>
-                        {saving && <span style={{ position: 'absolute', top: '-10px', right: '10px', background: '#10b981', color: 'white', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>{saving}</span>}
-                        <p style={{ fontWeight: 700, fontSize: '18px', color: active ? '#6366f1' : '#1e293b', margin: '0 0 2px' }}>{price}</p>
-                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>{period}</p>
+                      <button key={p} onClick={() => setSelectedPlan(p)} style={{ position: 'relative', border: `2px solid ${active ? '#8b5cf6' : '#e2e8f0'}`, borderRadius: '14px', padding: '18px 12px', background: active ? 'linear-gradient(145deg,#faf5ff,#ede9fe)' : 'white', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: active ? '0 0 0 4px rgba(139,92,246,0.12)' : 'none' }}>
+                        {saving && <span style={{ position: 'absolute', top: '-10px', right: '8px', background: 'linear-gradient(135deg,#10b981,#059669)', color: 'white', fontSize: '10px', fontWeight: 800, padding: '3px 9px', borderRadius: '20px', letterSpacing: '0.02em' }}>{saving}</span>}
+                        <p style={{ fontWeight: 900, fontSize: '22px', color: active ? '#7c3aed' : '#1e293b', margin: '0 0 2px', letterSpacing: '-0.5px' }}>{price}</p>
+                        <p style={{ fontSize: '11px', color: active ? '#8b5cf6' : '#94a3b8', margin: '0 0 1px', fontWeight: 600 }}>{period}</p>
+                        <p style={{ fontSize: '11px', color: '#c4b5fd', margin: 0 }}>{perMonth}</p>
                       </button>
                     )
                   })}
                 </div>
 
                 {/* Features list */}
-                <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '16px 20px', marginBottom: '16px' }}>
+                <div style={{ background: '#fafafa', borderRadius: '14px', border: '1px solid #f1f5f9', padding: '18px 20px', marginBottom: '14px' }}>
                   {[
-                    '✅ Financial Health Score (0–100)',
-                    '✅ 50/30/20 Rule tracker',
-                    '✅ EMI-aware calculations',
-                    '✅ Category budget vs actual',
-                    '✅ Month-end spending forecast',
-                    '✅ Payment method breakdown',
-                    '✅ Savings insights & alerts',
-                  ].map(f => (
-                    <p key={f} style={{ fontSize: '13px', color: '#475569', margin: '0 0 8px', lineHeight: 1.5 }}>{f}</p>
+                    { icon: '🎯', text: 'Financial Health Score (0–100)' },
+                    { icon: '📊', text: '50/30/20 Rule tracker' },
+                    { icon: '🏦', text: 'EMI-aware savings calculations' },
+                    { icon: '🫙', text: 'Budget vs actual glass drums' },
+                    { icon: '🔮', text: 'Month-end spending forecast' },
+                    { icon: '💳', text: 'Payment method breakdown' },
+                    { icon: '💡', text: 'Personalised money action plan' },
+                  ].map(({ icon, text }) => (
+                    <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '16px', width: '22px', textAlign: 'center', flexShrink: 0 }}>{icon}</span>
+                      <span style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{text}</span>
+                    </div>
                   ))}
                 </div>
 
@@ -856,16 +869,18 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 <button
                   onClick={() => handlePayment(selectedPlan)}
                   disabled={paymentLoading}
-                  style={{ width: '100%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '12px', padding: '16px', fontSize: '15px', fontWeight: 700, cursor: paymentLoading ? 'not-allowed' : 'pointer', opacity: paymentLoading ? 0.7 : 1 }}
+                  style={{ width: '100%', background: paymentLoading ? '#a5b4fc' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '14px', padding: '17px', fontSize: '15px', fontWeight: 800, cursor: paymentLoading ? 'not-allowed' : 'pointer', letterSpacing: '0.01em', boxShadow: paymentLoading ? 'none' : '0 4px 20px rgba(99,102,241,0.35)', transition: 'all 0.15s' }}
                 >
                   {paymentLoading
                     ? <span className="dot-loader"><span/><span/><span/></span>
-                    : `Pay ${planDetails[selectedPlan].price} with Razorpay`}
+                    : `Unlock Premium — ${planDetails[selectedPlan].price}`}
                 </button>
 
-                <p style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginTop: '12px' }}>
-                  Secured by Razorpay · UPI, Cards, Net Banking accepted
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '12px' }}>
+                  {['🔒 Razorpay secured', '💳 UPI · Cards · Net Banking', '↩️ Cancel anytime'].map(t => (
+                    <span key={t} style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>{t}</span>
+                  ))}
+                </div>
               </div>
             )
           }
