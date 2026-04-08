@@ -489,7 +489,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
             {(['expenses', 'analytics', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
                 style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                {t === 'analytics' ? '✨ Analytics' : t}
+                {t === 'analytics' ? 'Analytics' : t}
               </button>
             ))}
           </div>
@@ -1674,10 +1674,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
       {/* Mobile bottom nav — visible only on ≤640px */}
       <nav className="dash-bottom-nav">
-        {([['expenses','💸','Expenses'],['analytics','✨','Analytics'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
+        {([['expenses','💸','Expenses'],['analytics','📊','Analytics'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? 'active' : ''}>
-            <span style={{ fontSize: '18px' }}>{icon}</span>
-            <span>{label}</span>
+            <span style={{ fontSize: '22px', lineHeight: 1 }}>{icon}</span>
+            <span style={{ fontSize: '10px', marginTop: '2px' }}>{label}</span>
           </button>
         ))}
       </nav>

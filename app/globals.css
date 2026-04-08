@@ -514,12 +514,10 @@ html { -webkit-text-size-adjust: 100%; }
 @media (max-width: 640px) {
   .dash-nav {
     padding: 0 16px;
-    height: auto;
-    min-height: 60px;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    height: 56px;
+    min-height: 56px;
+    flex-wrap: nowrap;
+    gap: 0;
   }
 
   .dash-content {
