@@ -1295,32 +1295,91 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     )}
                   </div>
 
-                  {/* Spending limits */}
+                  {/* Spending limits — glass drum */}
                   {Object.keys(catBudgets).length > 0 && (
-                    <div style={card({ padding: '20px 24px' })}>
-                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Are you within your spending limits?</p>
-                      <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px', lineHeight: 1.5 }}>
-                        You set a monthly limit for each category. Here's how you're doing:
+                    <div style={{ ...card({ padding: '24px 28px' }), background: 'linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%)', border: '1px solid rgba(139,92,246,0.18)' }}>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '4px' }}>Budget vs Actual Spending</p>
+                      <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '22px', lineHeight: 1.5 }}>
+                        Each tube shows how full your budget is this month
                       </p>
                       {CATEGORIES.filter(c => catBudgets[c] > 0).map(cat => {
                         const spent = expenses.filter(e => e.category === cat).reduce((s,e) => s + e.amount, 0)
                         const budget = catBudgets[cat]
                         const pct = Math.min((spent / budget) * 100, 100)
-                        const over = spent > budget
-                        const warn = pct > 80 && !over
-                        const statusColor = over ? '#ef4444' : warn ? '#f59e0b' : '#10b981'
+                        const rawPct = (spent / budget) * 100
+                        const over = rawPct > 100
+                        const warn = rawPct > 80 && !over
+                        // liquid gradient colour
+                        const liquidGrad = over
+                          ? 'linear-gradient(90deg, #b91c1c 0%, #ef4444 60%, #fca5a5 100%)'
+                          : warn
+                          ? 'linear-gradient(90deg, #b45309 0%, #f59e0b 60%, #fde68a 100%)'
+                          : 'linear-gradient(90deg, #065f46 0%, #10b981 60%, #6ee7b7 100%)'
+                        const glowColor = over ? '#ef444455' : warn ? '#f59e0b55' : '#10b98155'
+                        const labelColor = over ? '#fca5a5' : warn ? '#fde68a' : '#6ee7b7'
                         return (
-                          <div key={cat} style={{ marginBottom: '14px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{CAT_ICON[cat]} {cat}</span>
-                              <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 10px', borderRadius: '20px', background: over ? '#fef2f2' : warn ? '#fffbeb' : '#f0fdf4', color: statusColor }}>
-                                {over ? `Over by ${fmt(spent - budget)}` : warn ? `${fmt(budget - spent)} left — close` : `${fmt(budget - spent)} still available`}
+                          <div key={cat} style={{ marginBottom: '18px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{CAT_ICON[cat]} {cat}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: labelColor }}>
+                                {fmt(spent)} / {fmt(budget)}
+                                {over && <span style={{ marginLeft: '6px', fontSize: '11px', background: '#7f1d1d', color: '#fca5a5', padding: '1px 7px', borderRadius: '20px' }}>+{fmt(spent - budget)} over</span>}
                               </span>
                             </div>
-                            <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${pct}%`, background: statusColor, borderRadius: '4px', transition: 'width 0.8s ease' }} />
+                            {/* Glass drum track */}
+                            <div style={{
+                              position: 'relative',
+                              height: '22px',
+                              borderRadius: '100px',
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.10)',
+                              overflow: 'hidden',
+                              boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.4)',
+                            }}>
+                              {/* Liquid fill */}
+                              <div style={{
+                                position: 'absolute',
+                                top: 0, left: 0,
+                                height: '100%',
+                                width: `${pct}%`,
+                                background: liquidGrad,
+                                borderRadius: '100px',
+                                transition: 'width 1s cubic-bezier(0.34,1.56,0.64,1)',
+                                boxShadow: `0 0 12px ${glowColor}`,
+                              }} />
+                              {/* Glass shine overlay */}
+                              <div style={{
+                                position: 'absolute',
+                                top: '2px', left: '4px', right: '4px',
+                                height: '7px',
+                                borderRadius: '100px',
+                                background: 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)',
+                                pointerEvents: 'none',
+                              }} />
+                              {/* Percentage text inside */}
+                              {pct > 18 && (
+                                <span style={{
+                                  position: 'absolute',
+                                  left: '10px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  color: 'rgba(255,255,255,0.9)',
+                                  letterSpacing: '0.02em',
+                                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                                }}>
+                                  {rawPct.toFixed(0)}%
+                                </span>
+                              )}
                             </div>
-                            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>Spent {fmt(spent)} of your {fmt(budget)} limit</p>
+                            <p style={{ fontSize: '11px', color: '#64748b', marginTop: '5px' }}>
+                              {over
+                                ? `Exceeded by ${fmt(spent - budget)} — review this category`
+                                : warn
+                                ? `Only ${fmt(budget - spent)} left — almost full`
+                                : `${fmt(budget - spent)} remaining out of ${fmt(budget)}`}
+                            </p>
                           </div>
                         )
                       })}
