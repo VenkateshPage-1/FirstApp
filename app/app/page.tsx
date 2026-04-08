@@ -4,13 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import LoginForm from '../_components/LoginForm'
 import SignupForm from '../_components/SignupForm'
 import Dashboard from '../_components/Dashboard'
-import DemoDashboard from '../_components/DemoDashboard'
 
-type View = 'loading' | 'login' | 'signup' | 'dashboard' | 'demo'
+type View = 'loading' | 'login' | 'signup' | 'dashboard'
 
 export default function AppPage() {
-  // Start with login immediately — no blank loading screen
-  // Session check runs silently in background; if already logged in, transition to dashboard
   const [view, setView] = useState<View>('login')
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const lastUser = useRef<string>('')
@@ -30,7 +27,6 @@ export default function AppPage() {
           setCurrentUser(data.user.username)
           transitionTo('dashboard')
         }
-        // If not authenticated, we're already showing login — nothing to do
       } catch {
         // Already showing login, ignore errors
       }
@@ -65,7 +61,6 @@ export default function AppPage() {
     transitionTo('login')
   }
 
-  // Only apply animation classes during actual transitions, not on initial page load
   const pageClass = exiting ? 'page-exit' : hasTransitioned.current ? 'page-enter' : ''
 
   if (view === 'dashboard') {
@@ -76,24 +71,12 @@ export default function AppPage() {
     )
   }
 
-  if (view === 'demo') {
-    return (
-      <div key={animKey} className={pageClass}>
-        <DemoDashboard
-          onSignup={() => transitionTo('signup')}
-          onLogin={() => transitionTo('login')}
-        />
-      </div>
-    )
-  }
-
   if (view === 'signup') {
     return (
       <div key={animKey} className={pageClass}>
         <SignupForm
           onSignup={handleLogin}
           onSwitchToLogin={() => transitionTo('login')}
-          onTryDemo={() => transitionTo('demo')}
         />
       </div>
     )
@@ -104,7 +87,6 @@ export default function AppPage() {
       <LoginForm
         onLogin={handleLogin}
         onSwitchToSignup={() => transitionTo('signup')}
-        onTryDemo={() => transitionTo('demo')}
       />
     </div>
   )

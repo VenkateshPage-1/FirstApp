@@ -5,10 +5,9 @@ import { useState } from 'react'
 interface LoginFormProps {
   onLogin: (username: string) => void
   onSwitchToSignup: () => void
-  onTryDemo: () => void
 }
 
-export default function LoginForm({ onLogin, onSwitchToSignup, onTryDemo }: LoginFormProps) {
+export default function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -138,12 +137,6 @@ export default function LoginForm({ onLogin, onSwitchToSignup, onTryDemo }: Logi
         <div className="auth-footer">
           Don't have an account?{' '}
           <button className="auth-link" onClick={onSwitchToSignup}>Create one</button>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '8px' }}>
-          <button className="auth-link" onClick={onTryDemo} style={{ fontSize: '13px', color: '#94a3b8' }}>
-            👀 Try demo without signing up
-          </button>
         </div>
 
         <p className="auth-legal">

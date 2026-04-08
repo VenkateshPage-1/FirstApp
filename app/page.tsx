@@ -87,15 +87,14 @@ export default function LandingPage() {
       ` }} />
 
       {/* ── NAV ── */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(9,10,15,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 32px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontWeight: 800, fontSize: '18px', color: '#fff', letterSpacing: '-0.5px' }}>
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(9,10,15,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <span style={{ fontWeight: 800, fontSize: '18px', color: '#fff', letterSpacing: '-0.5px', flexShrink: 0 }}>
           Track<span style={{ color: '#a78bfa' }}>Penny</span>
         </span>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Link href="#features" className="nav-link" style={{ marginRight: '8px' }}>Features</Link>
-          <Link href="#pricing" className="nav-link" style={{ marginRight: '16px' }}>Pricing</Link>
-          <Link href="/app" className="nav-link" style={{ marginRight: '8px' }}>Login</Link>
-          <Link href="/app" className="btn-primary">Get started free</Link>
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'nowrap' }}>
+          <Link href="#features" className="nav-link" style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>Features</Link>
+          <Link href="#pricing" className="nav-link" style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>Pricing</Link>
+          <Link href="/app" className="btn-primary" style={{ padding: '8px 16px', fontSize: '13px', whiteSpace: 'nowrap', marginLeft: '4px' }}>Login</Link>
         </div>
       </nav>
 
@@ -120,9 +119,6 @@ export default function LandingPage() {
           <div className="hero-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/app" className="btn-primary" style={{ padding: '14px 32px', fontSize: '16px', borderRadius: '10px' }}>
               Start tracking free →
-            </Link>
-            <Link href="/app" style={{ display: 'inline-block', color: '#94a3b8', padding: '14px 24px', fontSize: '15px', fontWeight: 500, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', transition: 'border-color .15s' }}>
-              👀 Try demo
             </Link>
           </div>
 
