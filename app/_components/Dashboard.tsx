@@ -1171,104 +1171,93 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 {/* ── LEFT COLUMN ── */}
                 <div>
 
-                  {/* Financial Health Score */}
+                  {/* Overall Score */}
                   <div style={card({ padding: '24px' })}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                          <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Financial Health</p>
-                          <div style={{ position: 'relative', display: 'inline-block' }}
-                            onMouseEnter={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'block' }}
-                            onMouseLeave={e => { const t = e.currentTarget.querySelector('.score-tooltip') as HTMLElement; if(t) t.style.display = 'none' }}>
-                            <span style={{ width: '15px', height: '15px', borderRadius: '50%', background: '#e2e8f0', color: '#64748b', fontSize: '9px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}>?</span>
-                            <div className="score-tooltip" style={{ display: 'none', position: 'absolute', top: '0', left: '20px', width: '250px', background: '#1e293b', color: 'white', borderRadius: '12px', padding: '14px 16px', fontSize: '12px', lineHeight: 1.7, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', textAlign: 'left' }}>
-                              <p style={{ fontWeight: 700, marginBottom: '8px', color: '#e2e8f0' }}>Score breakdown (out of 100)</p>
-                              {[
-                                { label: '💰 Savings Rate', score: Math.round(savingsScore), max: 35, detail: `${savingsRate.toFixed(1)}% of ${savingsGoal}% goal` },
-                                { label: '📦 Budget Adherence', score: Math.round(budgetScore), max: 35, detail: budgetCats.length > 0 ? `${budgetCats.filter(c => expenses.filter(e=>e.category===c).reduce((s,e)=>s+e.amount,0) <= catBudgets[c]).length}/${budgetCats.length} on track` : 'No budgets set' },
-                                { label: '📝 Consistency', score: Math.round(consistencyScore), max: 15, detail: `${expenses.length} transactions` },
-                                { label: '🏦 EMI Health', score: emiHealthScore, max: 15, detail: `${emiPct.toFixed(0)}% of income` },
-                              ].map(({ label, score, max, detail }) => (
-                                <div key={label} style={{ marginBottom: '8px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#94a3b8' }}>{label}</span>
-                                    <span style={{ color: scoreColor, fontWeight: 600 }}>{score}/{max}</span>
-                                  </div>
-                                  <p style={{ color: '#64748b', fontSize: '11px' }}>{detail}</p>
-                                </div>
-                              ))}
-                              <div style={{ borderTop: '1px solid #334155', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Total</span>
-                                <span style={{ color: scoreColor, fontWeight: 700 }}>{healthScore}/100 · {scoreLabel}</span>
-                              </div>
-                              <div style={{ position: 'absolute', top: '8px', left: '-6px', width: '12px', height: '12px', background: '#1e293b', borderRadius: '2px', rotate: '45deg' }} />
-                            </div>
-                          </div>
-                        </div>
-                        <p style={{ fontSize: '28px', fontWeight: 900, color: scoreColor, letterSpacing: '-1px', lineHeight: 1 }}>{healthScore}<span style={{ fontSize: '14px', fontWeight: 500, color: '#94a3b8' }}>/100</span></p>
-                        <span style={{ display: 'inline-block', marginTop: '4px', background: healthScore >= 70 ? '#f0fdf4' : healthScore >= 40 ? '#fffbeb' : '#fef2f2', color: scoreColor, fontSize: '11px', fontWeight: 700, padding: '2px 10px', borderRadius: '20px' }}>{scoreLabel}</span>
-                      </div>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Overall Financial Health</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px', lineHeight: 1.5 }}>
+                      We score your money habits out of 100 based on how much you save, how well you stick to your budget, and how much of your income goes to loan payments.
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                       <svg viewBox="0 0 80 80" width="80" height="80" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
                         <circle cx="40" cy="40" r="32" fill="none" stroke="#f1f5f9" strokeWidth="8" />
                         <circle cx="40" cy="40" r="32" fill="none" stroke={scoreColor} strokeWidth="8"
                           strokeDasharray={`${(healthScore / 100) * 201} 201`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 1s ease' }} />
                       </svg>
+                      <div>
+                        <p style={{ fontSize: '40px', fontWeight: 900, color: scoreColor, letterSpacing: '-2px', lineHeight: 1 }}>{healthScore}</p>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: scoreColor, marginTop: '2px' }}>{scoreLabel}</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>out of 100</p>
+                      </div>
                     </div>
-                    <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>Hover <strong>?</strong> on the label above for breakdown</p>
+                    <div style={{ marginTop: '16px', padding: '12px 14px', borderRadius: '10px', background: healthScore >= 70 ? '#f0fdf4' : healthScore >= 40 ? '#fffbeb' : '#fef2f2' }}>
+                      <p style={{ fontSize: '13px', color: healthScore >= 70 ? '#065f46' : healthScore >= 40 ? '#92400e' : '#b91c1c', lineHeight: 1.6 }}>
+                        {healthScore >= 70
+                          ? '🎉 Your finances are in great shape! You\'re saving well and spending responsibly.'
+                          : healthScore >= 40
+                          ? '📈 You\'re doing okay, but there\'s room to improve. Focus on saving more each month.'
+                          : '⚠️ Your finances need attention. Try to cut unnecessary spending and save at least 10% of income.'}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Savings Rate */}
+                  {/* How much are you saving */}
                   <div style={card({ padding: '20px 24px' })}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>How much are you saving?</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px', lineHeight: 1.5 }}>
+                      Out of every ₹100 you earn, you are saving <strong style={{ color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444' }}>₹{savingsRate.toFixed(0)}</strong>. Your goal is ₹{savingsGoal}.
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <div>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Savings Rate</p>
-                        <p style={{ fontSize: '32px', fontWeight: 900, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444', letterSpacing: '-1.5px', lineHeight: 1 }}>{savingsRate.toFixed(1)}<span style={{ fontSize: '16px' }}>%</span></p>
-                        <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{fmt(savings)} saved · goal {savingsGoal}%</p>
+                        <p style={{ fontSize: '28px', fontWeight: 900, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444', letterSpacing: '-1px', lineHeight: 1 }}>{fmt(savings)}</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>saved this month</p>
                       </div>
-                      <div style={{ padding: '5px 12px', borderRadius: '20px', background: savingsRate >= savingsGoal ? '#f0fdf4' : '#fef2f2', fontSize: '12px', fontWeight: 700, color: savingsRate >= savingsGoal ? '#10b981' : '#ef4444', flexShrink: 0 }}>
-                        {savingsRate >= savingsGoal ? '✓ On track' : '↑ Below goal'}
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: savingsRate >= savingsGoal ? '#10b981' : '#f59e0b' }}>{savingsRate.toFixed(1)}%</p>
+                        <p style={{ fontSize: '11px', color: '#94a3b8' }}>target: {savingsGoal}%</p>
                       </div>
                     </div>
-                    <div style={{ position: 'relative', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
-                      <div style={{ height: '100%', width: `${Math.min(savingsRate, 100)}%`, background: `linear-gradient(90deg, ${savingsRate >= savingsGoal ? '#10b981' : '#f59e0b'}, ${savingsRate >= savingsGoal ? '#34d399' : '#fbbf24'})`, borderRadius: '4px', transition: 'width 0.8s ease' }} />
+                    <div style={{ position: 'relative', height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
+                      <div style={{ height: '100%', width: `${Math.min(savingsRate, 100)}%`, background: savingsRate >= savingsGoal ? '#10b981' : '#f59e0b', borderRadius: '4px', transition: 'width 0.8s ease' }} />
                       <div style={{ position: 'absolute', top: 0, left: `${Math.min(savingsGoal, 98)}%`, width: '2px', height: '100%', background: '#6366f1' }} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8' }}>
-                      <span>0%</span><span style={{ color: '#6366f1' }}>Goal: {savingsGoal}%</span><span>100%</span>
-                    </div>
+                    <p style={{ fontSize: '12px', color: savingsRate >= savingsGoal ? '#10b981' : '#64748b' }}>
+                      {savingsRate >= savingsGoal
+                        ? `✅ You're ₹${(savingsRate - savingsGoal).toFixed(0)} ahead of your goal — well done!`
+                        : `You need to save ${fmt((savingsGoal / 100) * income - savings)} more to reach your ${savingsGoal}% goal.`}
+                    </p>
                   </div>
 
-                  {/* 50/30/20 Rule */}
+                  {/* Where is your money going */}
                   <div style={card({ padding: '20px 24px' })}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <div>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>50 / 30 / 20 Rule</p>
-                        <p style={{ fontSize: '11px', color: '#cbd5e1' }}>Elizabeth Warren framework</p>
-                      </div>
-                    </div>
-                    {/* Stacked bar */}
-                    <div style={{ display: 'flex', height: '10px', borderRadius: '5px', overflow: 'hidden', marginBottom: '16px', gap: '2px' }}>
-                      <div style={{ flex: needsPct, background: '#6366f1', minWidth: needsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Where is your money going?</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
+                      The ideal split is: <strong>50%</strong> on essentials, <strong>30%</strong> on lifestyle, <strong>20%</strong> on savings.
+                    </p>
+                    <div style={{ display: 'flex', height: '12px', borderRadius: '6px', overflow: 'hidden', marginBottom: '14px', gap: '2px' }}>
+                      <div style={{ flex: needsPct, background: '#6366f1', minWidth: needsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease', borderRadius: '6px 0 0 6px' }} />
                       <div style={{ flex: wantsPct, background: '#8b5cf6', minWidth: wantsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
-                      <div style={{ flex: Math.max(savingsPct, 0), background: '#10b981', minWidth: savingsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease' }} />
+                      <div style={{ flex: Math.max(savingsPct, 0), background: '#10b981', minWidth: savingsPct > 0 ? '4px' : 0, transition: 'flex 0.8s ease', borderRadius: '0 6px 6px 0' }} />
                     </div>
                     {[
-                      { label: 'Needs', desc: 'Food · Bills · Health', actual: needsPct, target: 50, amount: needsTotal, color: '#6366f1' },
-                      { label: 'Wants', desc: 'Shopping · Entertainment', actual: wantsPct, target: 30, amount: wantsTotal, color: '#8b5cf6' },
-                      { label: 'Savings', desc: 'What you keep', actual: savingsPct, target: 20, amount: savings, color: '#10b981' },
-                    ].map(({ label, desc, actual, target, amount, color }) => (
-                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0 }} />
-                          <div>
-                            <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{label}</p>
-                            <p style={{ fontSize: '10px', color: '#94a3b8' }}>{desc}</p>
+                      { label: 'Essentials', desc: 'Food, Bills, Health', actual: needsPct, target: 50, amount: needsTotal, color: '#6366f1', tip: needsPct > 55 ? 'Too high — try cutting food or utility bills' : needsPct <= 50 ? 'Within the ideal limit' : 'Slightly above, keep an eye on it' },
+                      { label: 'Lifestyle', desc: 'Shopping, Entertainment, Transport', actual: wantsPct, target: 30, amount: wantsTotal, color: '#8b5cf6', tip: wantsPct > 35 ? 'Reduce shopping or outings to save more' : 'Good — lifestyle spending is in control' },
+                      { label: 'Savings', desc: 'Money you kept this month', actual: savingsPct, target: 20, amount: savings, color: '#10b981', tip: savingsPct >= 20 ? 'Great! You hit the 20% savings target' : 'Aim for at least 20% — small cuts add up' },
+                    ].map(({ label, desc, actual, target, amount, color, tip }) => (
+                      <div key={label} style={{ padding: '10px 12px', borderRadius: '10px', background: '#f8fafc', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0, marginTop: '2px' }} />
+                            <div>
+                              <p style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>{label}</p>
+                              <p style={{ fontSize: '11px', color: '#94a3b8' }}>{desc}</p>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: '14px', fontWeight: 800, color: actual > target + 5 ? '#ef4444' : color }}>{actual.toFixed(0)}%</p>
+                            <p style={{ fontSize: '10px', color: '#94a3b8' }}>ideal: {target}%</p>
                           </div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p style={{ fontSize: '13px', fontWeight: 700, color: actual > target + 5 ? '#ef4444' : color }}>{actual.toFixed(0)}%</p>
-                          <p style={{ fontSize: '10px', color: '#94a3b8' }}>target {target}% · {fmt(amount)}</p>
-                        </div>
+                        <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', paddingLeft: '18px' }}>{fmt(amount)} · {tip}</p>
                       </div>
                     ))}
                   </div>
@@ -1278,40 +1267,41 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 {/* ── RIGHT COLUMN ── */}
                 <div>
 
-                  {/* Month-end Forecast */}
+                  {/* Will you overspend */}
                   <div style={card({ padding: '20px 24px' })}>
-                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>Month-end Forecast</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px' }}>
-                      <div>
-                        <p style={{ fontSize: '28px', fontWeight: 900, color: forecastTotal > income ? '#ef4444' : '#0f172a', letterSpacing: '-1px', lineHeight: 1 }}>{fmt(forecastTotal)}</p>
-                        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>Variable {fmt(forecastVariable)} + EMI {fmt(totalEMI)}</p>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Day {dayOfMonth}/{daysInMonth}</p>
-                        <p style={{ fontSize: '11px', color: '#94a3b8' }}>{fmt(dailyRate)}/day avg</p>
-                      </div>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Will you overspend this month?</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
+                      Based on your spending so far ({dayOfMonth} of {daysInMonth} days), you are on track to spend:
+                    </p>
+                    <p style={{ fontSize: '32px', fontWeight: 900, color: forecastTotal > income ? '#ef4444' : '#0f172a', letterSpacing: '-1.5px', marginBottom: '4px' }}>{fmt(forecastTotal)}</p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '14px' }}>
+                      Daily average: {fmt(dailyRate)}/day · Loan payments: {fmt(totalEMI)}/month
+                    </p>
+                    <div style={{ position: 'relative', height: '8px', background: '#f1f5f9', borderRadius: '4px', marginBottom: '8px', overflow: 'visible' }}>
+                      <div style={{ height: '100%', width: `${daysPct}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: '4px', transition: 'width 0.8s ease' }} />
+                      <div style={{ position: 'absolute', top: '-4px', left: `${daysPct}%`, width: '14px', height: '14px', borderRadius: '50%', background: '#6366f1', border: '2px solid white', boxShadow: '0 1px 4px rgba(99,102,241,0.4)', transform: 'translateX(-50%)' }} />
                     </div>
-                    {/* Timeline bar */}
-                    <div style={{ position: 'relative', height: '6px', background: '#f1f5f9', borderRadius: '3px', marginBottom: '8px', overflow: 'visible' }}>
-                      <div style={{ height: '100%', width: `${daysPct}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: '3px', transition: 'width 0.8s ease' }} />
-                      <div style={{ position: 'absolute', top: '-3px', left: `${daysPct}%`, width: '12px', height: '12px', borderRadius: '50%', background: '#6366f1', border: '2px solid white', boxShadow: '0 1px 4px rgba(99,102,241,0.4)', transform: 'translateX(-50%)', transition: 'left 0.8s ease' }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8', marginBottom: '12px' }}>
-                      <span>1st</span><span>Today</span><span>Month end</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginBottom: '14px' }}>
+                      <span>Start of month</span><span>Today (day {dayOfMonth})</span><span>End</span>
                     </div>
                     {income > 0 && (
-                      <div style={{ padding: '10px 14px', borderRadius: '10px', background: forecastTotal > income ? '#fef2f2' : '#f0fdf4', fontSize: '13px', color: forecastTotal > income ? '#b91c1c' : '#065f46', fontWeight: 600 }}>
-                        {forecastTotal > income
-                          ? `⚠️ Overspend by ${fmt(forecastTotal - income)}`
-                          : `✅ Projected savings: ${fmt(income - forecastTotal)}`}
+                      <div style={{ padding: '12px 14px', borderRadius: '10px', background: forecastTotal > income ? '#fef2f2' : '#f0fdf4' }}>
+                        <p style={{ fontSize: '13px', color: forecastTotal > income ? '#b91c1c' : '#065f46', fontWeight: 600, lineHeight: 1.6 }}>
+                          {forecastTotal > income
+                            ? `⚠️ You may overspend by ${fmt(forecastTotal - income)}. Try to spend ${fmt(dailyRate * (daysInMonth - dayOfMonth) - (income - totalThisMonth - totalEMI))} less in the remaining ${daysInMonth - dayOfMonth} days.`
+                            : `✅ You're on track to save ${fmt(income - forecastTotal)} by end of month. Keep it up!`}
+                        </p>
                       </div>
                     )}
                   </div>
 
-                  {/* Budget vs Actual */}
+                  {/* Spending limits */}
                   {Object.keys(catBudgets).length > 0 && (
                     <div style={card({ padding: '20px 24px' })}>
-                      <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>Budget vs Actual</p>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Are you within your spending limits?</p>
+                      <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px', lineHeight: 1.5 }}>
+                        You set a monthly limit for each category. Here's how you're doing:
+                      </p>
                       {CATEGORIES.filter(c => catBudgets[c] > 0).map(cat => {
                         const spent = expenses.filter(e => e.category === cat).reduce((s,e) => s + e.amount, 0)
                         const budget = catBudgets[cat]
@@ -1320,93 +1310,101 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         const warn = pct > 80 && !over
                         const statusColor = over ? '#ef4444' : warn ? '#f59e0b' : '#10b981'
                         return (
-                          <div key={cat} style={{ marginBottom: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                          <div key={cat} style={{ marginBottom: '14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                               <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{CAT_ICON[cat]} {cat}</span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>{fmt(spent)} / {fmt(budget)}</span>
-                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '10px', background: over ? '#fef2f2' : warn ? '#fffbeb' : '#f0fdf4', color: statusColor }}>
-                                  {over ? `+${fmt(spent - budget)}` : `${fmt(budget - spent)} left`}
-                                </span>
-                              </div>
+                              <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 10px', borderRadius: '20px', background: over ? '#fef2f2' : warn ? '#fffbeb' : '#f0fdf4', color: statusColor }}>
+                                {over ? `Over by ${fmt(spent - budget)}` : warn ? `${fmt(budget - spent)} left — close` : `${fmt(budget - spent)} still available`}
+                              </span>
                             </div>
-                            <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${pct}%`, background: statusColor, borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                            <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: statusColor, borderRadius: '4px', transition: 'width 0.8s ease' }} />
                             </div>
+                            <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>Spent {fmt(spent)} of your {fmt(budget)} limit</p>
                           </div>
                         )
                       })}
                     </div>
                   )}
 
-                  {/* EMI Tracker */}
+                  {/* Loan payments */}
                   {emis.length > 0 && (
                     <div style={card({ padding: '20px 24px' })}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>EMI Tracker</p>
-                        <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '12px', background: emiPct > 40 ? '#fef2f2' : emiPct > 30 ? '#fffbeb' : '#f0fdf4', color: emiPct > 40 ? '#ef4444' : emiPct > 30 ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
-                          {emiPct.toFixed(0)}% of income
-                        </span>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Your monthly loan payments</p>
+                      <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '6px', lineHeight: 1.5 }}>
+                        You pay <strong>{fmt(totalEMI)}</strong> every month on loans — that is <strong style={{ color: emiPct > 40 ? '#ef4444' : emiPct > 30 ? '#f59e0b' : '#10b981' }}>{emiPct.toFixed(0)}%</strong> of your income.
+                      </p>
+                      <div style={{ padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', background: emiPct > 40 ? '#fef2f2' : emiPct > 30 ? '#fffbeb' : '#f0fdf4' }}>
+                        <p style={{ fontSize: '13px', color: emiPct > 40 ? '#b91c1c' : emiPct > 30 ? '#92400e' : '#065f46', fontWeight: 600 }}>
+                          {emiPct > 40
+                            ? '⚠️ More than 40% of your income goes to loans. This is high — consider paying off one loan early to free up cash.'
+                            : emiPct > 30
+                            ? '🟡 Around 30–40% on loans is manageable, but try not to take any new loans right now.'
+                            : '✅ Less than 30% on loans — this is healthy. You have good room to manage your expenses.'}
+                        </p>
                       </div>
                       {emis.map(emi => {
                         const debtFreeDate = new Date()
                         debtFreeDate.setMonth(debtFreeDate.getMonth() + emi.months_remaining)
-                        const totalMonths = 240
-                        const progressPct = Math.max(5, 100 - (emi.months_remaining / totalMonths) * 100)
+                        const yrs = Math.floor(emi.months_remaining / 12)
+                        const mos = emi.months_remaining % 12
+                        const timeLeft = yrs > 0 ? `${yrs} yr${yrs > 1 ? 's' : ''} ${mos > 0 ? `${mos} mo` : ''}` : `${mos} months`
                         return (
-                          <div key={emi.id} style={{ marginBottom: '12px', padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                          <div key={emi.id} style={{ marginBottom: '10px', padding: '12px 14px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <div>
                                 <p style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>🏦 {emi.name}</p>
-                                <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>{emi.months_remaining} months · free {debtFreeDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
+                                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '3px' }}>{timeLeft} remaining · loan ends {debtFreeDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
                               </div>
-                              <p style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{fmt(emi.amount)}<span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>/mo</span></p>
-                            </div>
-                            <div style={{ height: '5px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: '3px' }} />
+                              <p style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{fmt(emi.amount)}<span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 400 }}>/mo</span></p>
                             </div>
                           </div>
                         )
                       })}
-                      <div style={{ padding: '10px 14px', background: emiPct > 40 ? '#fef2f2' : emiPct > 30 ? '#fffbeb' : '#f0fdf4', borderRadius: '10px', fontSize: '12px', color: emiPct > 40 ? '#b91c1c' : emiPct > 30 ? '#92400e' : '#065f46', fontWeight: 600 }}>
-                        {emiPct > 40 ? '⚠️ EMIs exceed 40% — high debt stress. Consider prepayment.' : emiPct > 30 ? `🟡 ${emiPct.toFixed(0)}% EMI load — manageable, watch spending.` : '✅ Healthy EMI ratio (below 30%)'}
-                      </div>
                     </div>
                   )}
 
-                  {/* Payment Method Split */}
+                  {/* How you pay */}
                   <div style={card({ padding: '20px 24px' })}>
-                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>Payment Methods</p>
-                    {PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).length === 0
-                      ? <p style={{ fontSize: '13px', color: '#cbd5e1' }}>No expenses this month</p>
-                      : PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).map(m => {
-                          const pct = totalThisMonth > 0 ? (paymentTotals[m] / totalThisMonth) * 100 : 0
-                          return (
-                            <div key={m} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                              <span style={{ fontSize: '16px', width: '24px', textAlign: 'center', flexShrink: 0 }}>{PAYMENT_ICON[m]}</span>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>{m}</span>
-                                  <span style={{ fontSize: '12px', color: '#64748b' }}>{fmt(paymentTotals[m])} · {pct.toFixed(0)}%</span>
-                                </div>
-                                <div style={{ height: '5px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, background: '#6366f1', borderRadius: '3px', transition: 'width 0.8s ease' }} />
-                                </div>
-                              </div>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>How are you paying?</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '14px', lineHeight: 1.5 }}>
+                      {PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).length === 0
+                        ? 'No expenses recorded this month yet.'
+                        : `You used ${PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).length} payment method${PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).length > 1 ? 's' : ''} this month.`}
+                    </p>
+                    {PAYMENT_METHODS.filter(m => paymentTotals[m] > 0).map(m => {
+                      const pct = totalThisMonth > 0 ? (paymentTotals[m] / totalThisMonth) * 100 : 0
+                      return (
+                        <div key={m} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '20px', width: '28px', textAlign: 'center', flexShrink: 0 }}>{PAYMENT_ICON[m]}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{m}</span>
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>{fmt(paymentTotals[m])} ({pct.toFixed(0)}%)</span>
                             </div>
-                          )
-                        })
-                    }
+                            <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: '#6366f1', borderRadius: '3px', transition: 'width 0.8s ease' }} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
 
-                  {/* Smart Insight */}
-                  <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b)', borderRadius: '16px', padding: '20px 24px', border: '1px solid #312e81' }}>
-                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#a5b4fc', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>💡 Smart Insight</p>
+                  {/* What should you do next */}
+                  <div style={{ background: '#0f172a', borderRadius: '16px', padding: '20px 24px', border: '1px solid #1e293b' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '10px' }}>💡 What should you do next?</p>
                     {savingsRate < savingsGoal && income > 0
-                      ? <p style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: 1.7 }}>Cut <strong style={{ color: '#fbbf24' }}>{fmt(totalThisMonth - (income * (1 - savingsGoal/100)))}</strong> more this month to hit your {savingsGoal}% savings goal. Your top category is <strong style={{ color: '#a5b4fc' }}>{byCategory[0]?.cat ?? 'Food'}</strong> — start there.</p>
+                      ? <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.8 }}>
+                          You are spending <strong style={{ color: '#fbbf24' }}>{fmt(totalThisMonth - (income * (1 - savingsGoal/100)))}</strong> more than ideal this month. Your biggest expense is <strong style={{ color: '#a5b4fc' }}>{byCategory[0]?.cat ?? 'Food'}</strong> — try reducing that first to hit your saving target.
+                        </p>
                       : savingsRate >= savingsGoal
-                      ? <p style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: 1.7 }}>You're on track. Surplus of <strong style={{ color: '#34d399' }}>{fmt(savings)}</strong> — consider moving it to an index fund or FD for compounding growth.</p>
-                      : <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.7 }}>Add your income in settings to get personalised savings insights and recommendations.</p>
+                      ? <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.8 }}>
+                          Great work! You saved <strong style={{ color: '#34d399' }}>{fmt(savings)}</strong> this month. Consider putting this into a <strong style={{ color: '#a5b4fc' }}>mutual fund or FD</strong> so your money grows over time instead of sitting idle.
+                        </p>
+                      : <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.8 }}>
+                          Update your income in settings to get a personalised action plan for your savings and spending.
+                        </p>
                     }
                   </div>
 
