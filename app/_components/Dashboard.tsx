@@ -26,7 +26,7 @@ interface DashboardProps { username: string; onLogout: () => void }
 interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
 interface EMI { id: string; name: string; amount: number; months_remaining: number }
-interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null }
 
 declare global { interface Window { Razorpay: new (opts: object) => { open(): void } } }
 
@@ -90,6 +90,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<'quarterly' | 'annual'>('annual')
+  const [telegramCode, setTelegramCode] = useState<string | null>(null)
+  const [telegramBotUsername, setTelegramBotUsername] = useState('')
+  const [telegramLoading, setTelegramLoading] = useState(false)
+  const [telegramMsg, setTelegramMsg] = useState('')
 
   // Premium analytics setup state
   const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=emis, 3=budgets
@@ -1572,6 +1576,97 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                       <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.7, marginTop: '5px' }}>{userProfile.bio}</p>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Telegram Connect */}
+            <div style={{ ...card(), marginTop: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '24px' }}>✈️</span>
+                <div>
+                  <p style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Log expenses via Telegram</p>
+                  <p style={{ fontSize: '13px', color: '#64748b' }}>Send a message to the bot and it auto-adds the expense</p>
+                </div>
+              </div>
+
+              {userProfile.telegram_chat_id ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '10px', marginTop: '12px', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '16px' }}>✅</span>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#065f46' }}>Telegram is connected</p>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px' }}>
+                    Open your Telegram bot and send: <strong>"450 swiggy food"</strong> — it'll appear here instantly.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      setTelegramLoading(true)
+                      setTelegramMsg('')
+                      try {
+                        await fetch('/api/telegram/connect', { method: 'DELETE' })
+                        setUserProfile(p => ({ ...p, telegram_chat_id: null }))
+                        setTelegramCode(null)
+                        setTelegramMsg('Disconnected.')
+                      } finally {
+                        setTelegramLoading(false)
+                      }
+                    }}
+                    disabled={telegramLoading}
+                    style={{ fontSize: '13px', color: '#ef4444', background: 'none', border: '1px solid #fecaca', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer' }}>
+                    Disconnect Telegram
+                  </button>
+                </div>
+              ) : telegramCode ? (
+                <div style={{ marginTop: '12px' }}>
+                  <p style={{ fontSize: '13px', color: '#475569', marginBottom: '10px' }}>
+                    1. Open Telegram and search <strong>@{telegramBotUsername}</strong><br />
+                    2. Send this code to the bot:
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#f8fafc', border: '1px dashed #c7d2fe', borderRadius: '10px', marginBottom: '10px' }}>
+                    <code style={{ fontSize: '16px', fontWeight: 800, color: '#6366f1', letterSpacing: '1px', flex: 1 }}>{telegramCode}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(telegramCode); setTelegramMsg('Copied!') }}
+                      style={{ fontSize: '12px', color: '#6366f1', background: '#e0e7ff', border: 'none', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}>
+                      Copy
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>Code expires in 10 minutes. Once you send it, this page will show connected.</p>
+                  {telegramMsg && <p style={{ fontSize: '13px', color: '#10b981', marginTop: '6px' }}>{telegramMsg}</p>}
+                </div>
+              ) : (
+                <div style={{ marginTop: '12px' }}>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
+                    Example messages the bot understands:<br />
+                    <strong style={{ color: '#475569' }}>"450 swiggy food" · "200 petrol" · "1500 electricity"</strong>
+                  </p>
+                  {telegramMsg && <p style={{ fontSize: '13px', color: '#ef4444', marginBottom: '8px' }}>{telegramMsg}</p>}
+                  <button
+                    onClick={async () => {
+                      setTelegramLoading(true)
+                      setTelegramMsg('')
+                      try {
+                        const res = await fetch('/api/telegram/connect', { method: 'POST' })
+                        const data = await res.json()
+                        if (data.already_connected) {
+                          setUserProfile(p => ({ ...p, telegram_chat_id: 'connected' }))
+                        } else if (data.code) {
+                          setTelegramCode(data.code)
+                          setTelegramBotUsername(data.bot_username || 'TrackPennyBot')
+                        } else {
+                          setTelegramMsg('Failed to generate code. Try again.')
+                        }
+                      } catch {
+                        setTelegramMsg('Something went wrong. Try again.')
+                      } finally {
+                        setTelegramLoading(false)
+                      }
+                    }}
+                    disabled={telegramLoading}
+                    className={btnClass('primary')}
+                    style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '9px 20px' })}>
+                    {telegramLoading ? <span className="dot-loader"><span/><span/><span/></span> : 'Connect Telegram'}
+                  </button>
                 </div>
               )}
             </div>
