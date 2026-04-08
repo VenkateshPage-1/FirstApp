@@ -832,16 +832,16 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 {/* Features list */}
                 <div style={{ background: '#fafafa', borderRadius: '14px', border: '1px solid #f1f5f9', padding: '18px 20px', marginBottom: '14px' }}>
                   {[
-                    { icon: '🎯', text: 'Financial Health Score (0–100)' },
-                    { icon: '📊', text: '50/30/20 Rule tracker' },
-                    { icon: '🏦', text: 'EMI-aware savings calculations' },
-                    { icon: '🫙', text: 'Budget vs actual glass drums' },
-                    { icon: '🔮', text: 'Month-end spending forecast' },
-                    { icon: '💳', text: 'Payment method breakdown' },
-                    { icon: '💡', text: 'Personalised money action plan' },
-                  ].map(({ icon, text }) => (
+                    'Financial Health Score (0–100)',
+                    '50/30/20 Rule tracker',
+                    'EMI-aware savings calculations',
+                    'Budget vs actual glass drums',
+                    'Month-end spending forecast',
+                    'Payment method breakdown',
+                    'Personalised money action plan',
+                  ].map(text => (
                     <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                      <span style={{ fontSize: '16px', width: '22px', textAlign: 'center', flexShrink: 0 }}>{icon}</span>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', flexShrink: 0 }} />
                       <span style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{text}</span>
                     </div>
                   ))}
