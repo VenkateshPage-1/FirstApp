@@ -513,11 +513,12 @@ html { -webkit-text-size-adjust: 100%; }
 
 @media (max-width: 640px) {
   .dash-nav {
-    padding: 0 16px;
+    padding: 0 16px !important;
     height: 56px;
     min-height: 56px;
     flex-wrap: nowrap;
     gap: 0;
+    overflow: visible;
   }
 
   .dash-content {
