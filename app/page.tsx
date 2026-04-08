@@ -72,6 +72,8 @@ export default function LandingPage() {
         .feature-card:hover{box-shadow:0 4px 20px rgba(124,58,237,.08);border-color:#e9d5ff}
         .faq-item{border-bottom:1px solid #f1f5f9;padding:24px 0}
         .faq-item:last-child{border-bottom:none}
+        .hero-img{transition:transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94),box-shadow 0.4s ease;cursor:zoom-in}
+        .hero-img:hover{transform:scale(1.03);box-shadow:0 40px 100px rgba(0,0,0,0.7),0 0 0 1px rgba(139,92,246,0.3)}
         .plan-card{border:1.5px solid #e2e8f0;border-radius:16px;padding:32px 28px;transition:border-color .2s}
         .plan-card.featured{border-color:#7c3aed;background:#faf5ff}
         a{text-decoration:none}
@@ -131,7 +133,7 @@ export default function LandingPage() {
 
         {/* Telegram → Dashboard image */}
         <div style={{ maxWidth: '820px', margin: '56px auto 0' }}>
-          <div style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15)' }}>
+          <div className="hero-img" style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/My First Board.jpg"
