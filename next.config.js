@@ -3,6 +3,11 @@ const { withSentryConfig } = require('@sentry/nextjs')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return []
+  },
+  // Prevent trailing slash redirects on API routes
+  trailingSlash: false,
 }
 
 module.exports = withSentryConfig(nextConfig, {
