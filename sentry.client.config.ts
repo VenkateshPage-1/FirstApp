@@ -6,6 +6,10 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
   replaysSessionSampleRate: 0.05,
   debug: false,
+  ignoreErrors: [
+    'Unknown root exit status',
+    /Unknown root exit status/,
+  ],
   integrations: [
     Sentry.replayIntegration({
       maskAllText: true,
