@@ -4,7 +4,7 @@ const PUBLIC_PATHS = ['/', '/privacy', '/terms', '/reset-password']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith('/api/auth/'))
+  const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/'))
 
   if (isPublic) return NextResponse.next()
 
