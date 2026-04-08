@@ -3,10 +3,12 @@ const { withSentryConfig } = require('@sentry/nextjs')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    instrumentationHook: true,
+  },
   async redirects() {
     return []
   },
-  // Prevent trailing slash redirects on API routes
   trailingSlash: false,
 }
 
