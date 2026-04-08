@@ -16,6 +16,7 @@ export default function AppPage() {
   const lastUser = useRef<string>('')
   const [animKey, setAnimKey] = useState(0)
   const [exiting, setExiting] = useState(false)
+  const hasTransitioned = useRef(false)
   const pendingView = useRef<View | null>(null)
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -42,6 +43,7 @@ export default function AppPage() {
     if (pendingView.current === next) return
     if (transitionTimer.current) clearTimeout(transitionTimer.current)
     pendingView.current = next
+    hasTransitioned.current = true
     setExiting(true)
     transitionTimer.current = setTimeout(() => {
       setExiting(false)
@@ -49,7 +51,7 @@ export default function AppPage() {
       setAnimKey(k => k + 1)
       pendingView.current = null
       transitionTimer.current = null
-    }, 180)
+    }, 150)
   }
 
   const handleLogin = (username: string) => {
@@ -63,7 +65,8 @@ export default function AppPage() {
     transitionTo('login')
   }
 
-  const pageClass = exiting ? 'page-exit' : 'page-enter'
+  // Only apply animation classes during actual transitions, not on initial page load
+  const pageClass = exiting ? 'page-exit' : hasTransitioned.current ? 'page-enter' : ''
 
   if (view === 'dashboard') {
     return (
