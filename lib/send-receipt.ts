@@ -6,25 +6,21 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 interface ReceiptOptions {
   to: string
   name: string
-  plan: 'quarterly' | 'annual'
+  plan: string
   amount: number
   paymentId: string
   premiumUntil: string
 }
 
 export async function sendPaymentReceipt(opts: ReceiptOptions) {
-  const { to, name, plan, amount, paymentId, premiumUntil } = opts
-  const planLabel = plan === 'annual' ? 'Annual Plan' : 'Quarterly Plan'
-  const validUntil = new Date(premiumUntil).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  })
+  const { to, name, amount, paymentId } = opts
   const amountFormatted = `₹${(amount / 100).toFixed(0)}`
 
   try {
     await resend.emails.send({
       from: 'TrackPenny <receipts@trackpenny.com>',
       to,
-      subject: `Payment confirmed — ${planLabel}`,
+      subject: 'Payment confirmed — TrackPenny Premium',
       html: `
 <!DOCTYPE html>
 <html>
@@ -42,17 +38,17 @@ export async function sendPaymentReceipt(opts: ReceiptOptions) {
     <div style="padding:32px 36px">
       <p style="font-size:16px;color:#0f172a;margin:0 0 8px">Hi ${name},</p>
       <p style="font-size:15px;color:#475569;line-height:1.7;margin:0 0 28px">
-        Your payment was successful. You now have full access to TrackPenny Premium analytics.
+        Your payment was successful. You now have lifetime access to TrackPenny Premium analytics.
       </p>
 
       <!-- Receipt box -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:28px">
         <p style="font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px">Payment Receipt</p>
         ${[
-          ['Plan', planLabel],
+          ['Plan', 'Premium (Lifetime)'],
           ['Amount paid', amountFormatted],
           ['Payment ID', paymentId],
-          ['Premium valid until', validUntil],
+          ['Access', 'Lifetime — never expires'],
         ].map(([label, value]) => `
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9">
           <span style="font-size:13px;color:#64748b">${label}</span>

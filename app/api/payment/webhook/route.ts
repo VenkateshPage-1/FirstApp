@@ -37,12 +37,8 @@ export async function POST(request: NextRequest) {
 
       // Only process if not already handled by /verify
       if (record && record.status !== 'paid') {
-        const premiumUntil = new Date()
-        if (record.plan === 'annual') {
-          premiumUntil.setFullYear(premiumUntil.getFullYear() + 1)
-        } else {
-          premiumUntil.setMonth(premiumUntil.getMonth() + 3)
-        }
+        // One-time payment — premium never expires
+        const premiumUntil = new Date('2099-12-31T23:59:59Z')
 
         await admin.from('payments').update({
           razorpay_payment_id: paymentEntity.id,
@@ -70,7 +66,7 @@ export async function POST(request: NextRequest) {
             to: user.email,
             name: profile?.full_name || user.email.split('@')[0],
             plan: record.plan as 'quarterly' | 'annual',
-            amount: record.plan === 'annual' ? 29900 : 9900,
+            amount: 4900,
             paymentId: paymentEntity.id,
             premiumUntil: premiumUntil.toISOString(),
           })

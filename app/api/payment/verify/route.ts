@@ -44,13 +44,8 @@ export async function POST(request: NextRequest) {
     if (!payment) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     if (payment.status === 'paid') return NextResponse.json({ error: 'Already processed' }, { status: 409 })
 
-    // Calculate expiry
-    const premiumUntil = new Date()
-    if (payment.plan === 'annual') {
-      premiumUntil.setFullYear(premiumUntil.getFullYear() + 1)
-    } else {
-      premiumUntil.setMonth(premiumUntil.getMonth() + 3)
-    }
+    // One-time payment — premium never expires (set to year 2099)
+    const premiumUntil = new Date('2099-12-31T23:59:59Z')
 
     // Mark payment paid
     await admin.from('payments').update({
@@ -81,7 +76,7 @@ export async function POST(request: NextRequest) {
         to: user.email,
         name: profile?.full_name || user.email.split('@')[0],
         plan: payment.plan as 'quarterly' | 'annual',
-        amount: payment.plan === 'annual' ? 29900 : 9900,
+        amount: 4900,
         paymentId: razorpay_payment_id,
         premiumUntil: premiumUntil.toISOString(),
       })

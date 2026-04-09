@@ -834,10 +834,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   <div style={{ fontSize: '36px', marginBottom: '14px', position: 'relative' }}>✨</div>
                   <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#f1f5f9', marginBottom: '16px', letterSpacing: '-0.5px', position: 'relative' }}>TrackPenny Premium</h2>
                   <div style={{ margin: '0 0 6px', position: 'relative' }}>
-                    <span style={{ fontSize: '52px', fontWeight: 900, color: '#fff', letterSpacing: '-2px' }}>₹99</span>
-                    <span style={{ fontSize: '15px', color: '#94a3b8', marginLeft: '6px' }}>/ quarter</span>
+                    <span style={{ fontSize: '52px', fontWeight: 900, color: '#fff', letterSpacing: '-2px' }}>₹49</span>
+                    <span style={{ fontSize: '15px', color: '#94a3b8', marginLeft: '6px' }}>one time</span>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px', position: 'relative' }}>One plan · All analytics · No hidden fees</p>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px', position: 'relative' }}>Pay once · Unlock forever · No hidden fees</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', position: 'relative' }}>
                     {['Health Score', '50/30/20', 'Budget Drums', 'Forecast', 'EMI Tracker'].map(f => (
                       <span key={f} style={{ fontSize: '11px', fontWeight: 600, color: '#a78bfa', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', padding: '4px 10px', borderRadius: '20px' }}>{f}</span>
@@ -872,7 +872,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 >
                   {paymentLoading
                     ? <span className="dot-loader"><span/><span/><span/></span>
-                    : 'Upgrade to Premium — ₹99'}
+                    : 'Unlock Premium — ₹49'}
                 </button>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '12px' }}>
