@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
@@ -130,11 +131,13 @@ export default function LandingPage() {
         {/* Telegram → Dashboard image */}
         <div style={{ maxWidth: '820px', margin: '56px auto 0' }}>
           <div className="hero-img" style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15)' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/Capture.JPG"
               alt="Send expense on Telegram — appears in TrackPenny instantly"
-              style={{ width: '100%', display: 'block', borderRadius: '20px' }}
+              width={1063}
+              height={490}
+              priority
+              style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '20px' }}
             />
             {/* Glow overlay at bottom */}
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '80px', background: 'linear-gradient(transparent, rgba(9,9,15,0.8))', borderRadius: '0 0 20px 20px' }} />

@@ -63,6 +63,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const profileReady = useRef(false)
 
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([])
   const [expensesLoading, setExpensesLoading] = useState(true)
   const [expenseError, setExpenseError] = useState('')
   const [expenseSuccess, setExpenseSuccess] = useState('')
@@ -239,6 +240,19 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   }, [filterMonth, filterCategory, handleLogout, cacheKey])
 
   useEffect(() => { fetchExpenses() }, [fetchExpenses])
+
+  // Fetch unfiltered month expenses for analytics (ignores category filter)
+  useEffect(() => {
+    const fetchAllExpenses = async () => {
+      try {
+        const res = await fetch(`/api/expenses?month=${filterMonth}`)
+        if (!res.ok) return
+        const data = await res.json()
+        setAllExpenses(data.expenses ?? [])
+      } catch { /* silent */ }
+    }
+    fetchAllExpenses()
+  }, [filterMonth])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -485,7 +499,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
       <nav className="dash-nav" style={{ background: 'white', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
           <span style={{ fontWeight: 800, fontSize: '17px', letterSpacing: '-0.5px' }}>
-            <span style={{ color: '#0f172a' }}>Track</span><span style={{ color: '#6366f1' }}>Penny</span>
+            <span style={{ color: '#10b981' }}>Track</span><span style={{ color: '#6366f1' }}>Penny</span>
           </span>
           <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
             {(['expenses', 'analytics', 'profile'] as Tab[]).map(t => (
@@ -878,16 +892,12 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           const disposableIncome = Math.max(0, income - totalEMI)
           const isSetup = income > 0
 
-          // EMI-aware calculations
-          // totalThisMonth = all expenses logged (may or may not include EMI as expense)
-          // disposableIncome = income - EMI (EMI is a fixed liability, not discretionary)
-          // savings = what's left of income after ALL spending (expenses + EMI if not in expenses)
-          // We do NOT subtract totalEMI from totalThisMonth — user should not log EMIs as expenses.
-          // If they do, it's their actual spend and is correctly penalised.
+          // EMI-aware calculations — use allExpenses (unfiltered by category) for accuracy
+          const totalThisMonth = allExpenses.reduce((s, e) => s + e.amount, 0)
           const savings = Math.max(0, income - totalThisMonth - totalEMI)
           const savingsRate = income > 0 ? (savings / income) * 100 : 0
-          const needsTotal = expenses.filter(e => NEEDS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
-          const wantsTotal = expenses.filter(e => WANTS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
+          const needsTotal = allExpenses.filter(e => NEEDS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
+          const wantsTotal = allExpenses.filter(e => WANTS_CATS.includes(e.category)).reduce((s, e) => s + e.amount, 0)
           const needsPct = disposableIncome > 0 ? (needsTotal / disposableIncome) * 100 : 0
           const wantsPct = disposableIncome > 0 ? (wantsTotal / disposableIncome) * 100 : 0
           const savingsPct = income > 0 ? (savings / income) * 100 : 0
@@ -903,7 +913,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
           // Payment split
           const paymentTotals = PAYMENT_METHODS.reduce<Record<string,number>>((acc, m) => {
-            acc[m] = expenses.filter(e => (e.payment_method ?? 'Cash') === m).reduce((s,e) => s + e.amount, 0)
+            acc[m] = allExpenses.filter(e => (e.payment_method ?? 'Cash') === m).reduce((s,e) => s + e.amount, 0)
             return acc
           }, {})
 
@@ -912,10 +922,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           const budgetCats = CATEGORIES.filter(c => catBudgets[c] > 0)
           const budgetScore = budgetCats.length > 0
             ? (budgetCats.filter(c => {
-                const spent = expenses.filter(e => e.category === c).reduce((s,e) => s+e.amount,0)
+                const spent = allExpenses.filter(e => e.category === c).reduce((s,e) => s+e.amount,0)
                 return spent <= catBudgets[c]
               }).length / budgetCats.length) * 35 : 17
-          const consistencyScore = Math.min(15, (expenses.length / 10) * 15)
+          const consistencyScore = Math.min(15, (allExpenses.length / 10) * 15)
           const emiHealthScore = emiPct <= 30 ? 15 : emiPct <= 40 ? 8 : 0
           const healthScore = Math.round(savingsScore + budgetScore + consistencyScore + emiHealthScore)
           const scoreColor = healthScore >= 70 ? '#10b981' : healthScore >= 40 ? '#f59e0b' : '#ef4444'
@@ -1094,6 +1104,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           }
 
           // ── ANALYTICS DASHBOARD ──
+          const allByCategory = CATEGORIES.map(cat => ({
+            cat,
+            total: allExpenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
+          })).filter(x => x.total > 0).sort((a, b) => b.total - a.total)
           const fmt = (n: number) => n >= 100000 ? `₹${(n/100000).toFixed(1)}L` : n >= 1000 ? `₹${(n/1000).toFixed(1)}K` : `₹${Math.round(n)}`
           const daysPct = Math.round((dayOfMonth / daysInMonth) * 100)
           return (
@@ -1103,7 +1117,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                 <div>
                   <h2 style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', margin: '0 0 3px', letterSpacing: '-0.3px' }}>Premium Analytics</h2>
                   <p style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    {new Date(filterYear, filterMonthNum - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · {expenses.length} transactions
+                    {new Date(filterYear, filterMonthNum - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · {allExpenses.length} transactions
                   </p>
                 </div>
                 <button onClick={startEditing} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1267,7 +1281,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         Each tube shows how full your budget is this month
                       </p>
                       {CATEGORIES.filter(c => catBudgets[c] > 0).map(cat => {
-                        const spent = expenses.filter(e => e.category === cat).reduce((s,e) => s + e.amount, 0)
+                        const spent = allExpenses.filter(e => e.category === cat).reduce((s,e) => s + e.amount, 0)
                         const budget = catBudgets[cat]
                         const pct = Math.min((spent / budget) * 100, 100)
                         const rawPct = (spent / budget) * 100
@@ -1459,7 +1473,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     <p style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '10px' }}>💡 What should you do next?</p>
                     {savingsRate < savingsGoal && income > 0
                       ? <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.8 }}>
-                          You are spending <strong style={{ color: '#fbbf24' }}>{fmt(totalThisMonth - (income * (1 - savingsGoal/100)))}</strong> more than ideal this month. Your biggest expense is <strong style={{ color: '#a5b4fc' }}>{byCategory[0]?.cat ?? 'Food'}</strong> — try reducing that first to hit your saving target.
+                          You are spending <strong style={{ color: '#fbbf24' }}>{fmt(totalThisMonth - (income * (1 - savingsGoal/100)))}</strong> more than ideal this month. Your biggest expense is <strong style={{ color: '#a5b4fc' }}>{allByCategory[0]?.cat ?? 'Food'}</strong> — try reducing that first to hit your saving target.
                         </p>
                       : savingsRate >= savingsGoal
                       ? <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.8 }}>

@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import * as Sentry from '@sentry/nextjs'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -82,7 +83,8 @@ export async function sendPaymentReceipt(opts: ReceiptOptions) {
 </html>`,
     })
   } catch (err) {
-    // Non-fatal — payment already succeeded, just log the email failure
+    // Non-fatal — payment already succeeded, but track so we know about failures
     console.error('Receipt email failed:', err)
+    Sentry.captureException(err, { extra: { to, paymentId } })
   }
 }
