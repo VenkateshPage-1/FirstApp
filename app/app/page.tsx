@@ -18,7 +18,7 @@ export default function AppPage() {
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = async (attempt = 0) => {
       try {
         const res = await fetch('/api/auth/session')
         const data = await res.json()
@@ -28,7 +28,8 @@ export default function AppPage() {
           transitionTo('dashboard')
         }
       } catch {
-        // Already showing login, ignore errors
+        // Retry once after 1.5s for transient network failures
+        if (attempt === 0) setTimeout(() => checkAuth(1), 1500)
       }
     }
     checkAuth()

@@ -132,7 +132,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: '820px', margin: '56px auto 0' }}>
           <div className="hero-img" style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15)' }}>
             <Image
-              src="/Capture.JPG"
+              src="/capture.jpg"
               alt="Send expense on Telegram — appears in TrackPenny instantly"
               width={1063}
               height={490}

@@ -11,6 +11,9 @@ Sentry.init({
   ignoreErrors: [
     'Unknown root exit status',
     /Unknown root exit status/,
+    'TypeError: Failed to fetch',
+    'TypeError: NetworkError when attempting to fetch resource',
+    'TypeError: Load failed',
   ],
   integrations: [
     Sentry.replayIntegration({
