@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendMessage } from '@/lib/telegram'
 import { parseExpense } from '@/lib/parse-expense'
 import { parseLoan } from '@/lib/parse-loan'
+import { parseSubscription } from '@/lib/parse-subscription'
 
 // Telegram sends a GET to verify the webhook is alive
 export async function GET() {
@@ -108,7 +109,56 @@ export async function POST(request: NextRequest) {
     const today = new Date()
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
-    // Try loan detection first
+    // Handle "cancel <name>" command
+    const cancelMatch = text.match(/^cancel\s+(.+)$/i)
+    if (cancelMatch) {
+      const subName = cancelMatch[1].trim()
+      const { data: sub } = await admin
+        .from('subscriptions')
+        .select('id, name')
+        .eq('user_id', profile.user_id)
+        .ilike('name', `%${subName}%`)
+        .eq('status', 'active')
+        .maybeSingle()
+
+      if (sub) {
+        await admin.from('subscriptions').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', sub.id)
+        await sendMessage(chatId, `✅ <b>${sub.name}</b> marked as cancelled. You won't get alerts for it anymore.`)
+      } else {
+        await sendMessage(chatId, `❌ Couldn't find an active subscription matching "${subName}".`)
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    // Try subscription detection
+    const sub = parseSubscription(text)
+    if (sub) {
+      const nextMonth = new Date()
+      nextMonth.setMonth(nextMonth.getMonth() + 1)
+      const nextBillingDate = nextMonth.toISOString().split('T')[0]
+
+      await admin.from('subscriptions').insert({
+        user_id: profile.user_id,
+        name: sub.name,
+        amount: sub.amount,
+        billing_cycle: sub.billing_cycle,
+        next_billing_date: nextBillingDate,
+        category: 'Bills',
+        alert_days_before: 3,
+        status: 'active',
+      })
+
+      const cycleLabel = sub.billing_cycle === 'monthly' ? 'monthly' : sub.billing_cycle === 'yearly' ? 'yearly' : sub.billing_cycle === 'weekly' ? 'weekly' : 'quarterly'
+      await sendMessage(chatId,
+        `📋 Subscription added!\n\n` +
+        `<b>${sub.name}</b> · ₹${sub.amount} · ${cycleLabel}\n` +
+        `Next billing: ${new Date(nextBillingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}\n\n` +
+        `You'll get a Telegram alert 3 days before billing.\n` +
+        `To update the billing date, go to TrackPenny → Subscriptions tab.`)
+      return NextResponse.json({ ok: true })
+    }
+
+    // Try loan detection
     const loan = parseLoan(text)
     if (loan) {
       await admin.from('loans').insert({
@@ -138,7 +188,11 @@ export async function POST(request: NextRequest) {
         '• 200 petrol\n\n' +
         '<b>Loan given:</b>\n' +
         '• gave 5000 venkatesh return 3 days\n' +
-        '• lent 2000 ram return next week')
+        '• lent 2000 ram return next week\n\n' +
+        '<b>Subscription/Autopay:</b>\n' +
+        '• netflix 649 monthly\n' +
+        '• spotify subscription 119\n' +
+        '• cancel netflix')
       return NextResponse.json({ ok: true })
     }
 

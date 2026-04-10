@@ -28,6 +28,7 @@ interface ExpenseForm { amount: string; category: string; description: string; d
 interface EMI { id: string; name: string; amount: number; months_remaining: number }
 interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null }
 interface Loan { id: string; person_name: string; amount: number; given_date: string; return_date: string | null; status: 'pending' | 'returned'; notes: string | null }
+interface Subscription { id: string; name: string; amount: number; billing_cycle: 'weekly' | 'monthly' | 'quarterly' | 'yearly'; next_billing_date: string; card_name: string | null; category: string; alert_days_before: number; status: 'active' | 'paused' | 'cancelled'; notes: string | null }
 
 declare global { interface Window { Razorpay: new (opts: object) => { open(): void } } }
 
@@ -41,7 +42,7 @@ const emptyProfile: UserProfile = {
   monthly_income: 0, savings_goal_pct: 20, category_budgets: {}, emis: [],
   is_premium: false, premium_until: null,
 }
-type Tab = 'expenses' | 'analytics' | 'loans' | 'profile'
+type Tab = 'expenses' | 'analytics' | 'loans' | 'subs' | 'profile'
 
 // Financial categories classification
 const NEEDS_CATS = ['Food', 'Bills', 'Health']
@@ -96,6 +97,15 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [telegramBotUsername, setTelegramBotUsername] = useState('')
   const [telegramLoading, setTelegramLoading] = useState(false)
   const [telegramMsg, setTelegramMsg] = useState('')
+
+  // Subscriptions state
+  const [subs, setSubs] = useState<Subscription[]>([])
+  const [subsLoading, setSubsLoading] = useState(false)
+  const [subForm, setSubForm] = useState({ name: '', amount: '', billing_cycle: 'monthly', next_billing_date: '', card_name: '', category: 'Bills', alert_days_before: '3', notes: '' })
+  const [showSubForm, setShowSubForm] = useState(false)
+  const [subError, setSubError] = useState('')
+  const [subSuccess, setSubSuccess] = useState('')
+  const [savingSub, setSavingSub] = useState(false)
 
   // Loans state
   const [loans, setLoans] = useState<Loan[]>([])
@@ -273,11 +283,19 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         if (!res.ok) return
         const data = await res.json()
         setLoans(data.loans ?? [])
-      } catch { /* silent */ } finally {
-        setLoansLoading(false)
-      }
+      } catch { /* silent */ } finally { setLoansLoading(false) }
+    }
+    const fetchSubs = async () => {
+      setSubsLoading(true)
+      try {
+        const res = await fetch('/api/subscriptions')
+        if (!res.ok) return
+        const data = await res.json()
+        setSubs(data.subscriptions ?? [])
+      } catch { /* silent */ } finally { setSubsLoading(false) }
     }
     fetchLoans()
+    fetchSubs()
   }, [])
 
   useEffect(() => {
@@ -528,10 +546,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
             <span style={{ color: '#10b981' }}>Track</span><span style={{ color: '#6366f1' }}>Penny</span>
           </span>
           <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
-            {(['expenses', 'analytics', 'loans', 'profile'] as Tab[]).map(t => (
+            {(['expenses', 'analytics', 'loans', 'subs', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
                 style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                {t === 'analytics' ? 'Analytics' : t === 'loans' ? 'Lent' : t}
+                {t === 'analytics' ? 'Analytics' : t === 'loans' ? 'Lent' : t === 'subs' ? 'Autopay' : t}
               </button>
             ))}
           </div>
@@ -1918,7 +1936,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
       {/* Mobile bottom nav — visible only on ≤640px */}
       <nav className="dash-bottom-nav">
-        {([['expenses','💸','Expenses'],['analytics','📊','Analytics'],['loans','🤝','Lent'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
+        {([['expenses','💸','Expenses'],['analytics','📊','Analytics'],['loans','🤝','Lent'],['subs','🔄','Autopay'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? 'active' : ''}>
             <span style={{ fontSize: '22px', lineHeight: 1 }}>{icon}</span>
             <span style={{ fontSize: '10px', marginTop: '2px' }}>{label}</span>
