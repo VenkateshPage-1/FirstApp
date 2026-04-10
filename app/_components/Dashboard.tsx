@@ -1737,6 +1737,241 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           )
         })()}
 
+        {/* ── SUBSCRIPTIONS TAB ── */}
+        {tab === 'subs' && (() => {
+          const activeSubs = subs.filter(s => s.status === 'active')
+          const cancelledSubs = subs.filter(s => s.status === 'cancelled' || s.status === 'paused')
+          const today = new Date().toISOString().split('T')[0]
+          const totalMonthly = activeSubs.reduce((sum, s) => {
+            if (s.billing_cycle === 'monthly') return sum + s.amount
+            if (s.billing_cycle === 'yearly') return sum + s.amount / 12
+            if (s.billing_cycle === 'weekly') return sum + s.amount * 4.33
+            if (s.billing_cycle === 'quarterly') return sum + s.amount / 3
+            return sum
+          }, 0)
+          const upcomingThisWeek = activeSubs.filter(s => {
+            const days = Math.ceil((new Date(s.next_billing_date).getTime() - new Date(today).getTime()) / 86400000)
+            return days >= 0 && days <= 7
+          })
+
+          const nextBillingDefault = () => {
+            const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().split('T')[0]
+          }
+
+          const handleAddSub = async (e: React.FormEvent) => {
+            e.preventDefault()
+            setSubError('')
+            if (!subForm.name.trim() || !subForm.amount || !subForm.next_billing_date) { setSubError('Name, amount and billing date required'); return }
+            setSavingSub(true)
+            try {
+              const res = await fetch('/api/subscriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: subForm.name.trim(),
+                  amount: Number(subForm.amount),
+                  billing_cycle: subForm.billing_cycle,
+                  next_billing_date: subForm.next_billing_date,
+                  card_name: subForm.card_name || null,
+                  category: subForm.category,
+                  alert_days_before: Number(subForm.alert_days_before),
+                  notes: subForm.notes || null,
+                }),
+              })
+              const data = await res.json()
+              if (!res.ok) { setSubError(data.error || 'Failed to add'); return }
+              setSubs(prev => [...prev, data.subscription].sort((a, b) => a.next_billing_date.localeCompare(b.next_billing_date)))
+              setSubForm({ name: '', amount: '', billing_cycle: 'monthly', next_billing_date: '', card_name: '', category: 'Bills', alert_days_before: '3', notes: '' })
+              setShowSubForm(false)
+              setSubSuccess('Subscription added!')
+              setTimeout(() => setSubSuccess(''), 2500)
+            } catch { setSubError('An error occurred') } finally { setSavingSub(false) }
+          }
+
+          const cancelSub = async (id: string) => {
+            const res = await fetch(`/api/subscriptions/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'cancelled' }),
+            })
+            if (res.ok) setSubs(prev => prev.map(s => s.id === id ? { ...s, status: 'cancelled' } : s))
+          }
+
+          const deleteSub = async (id: string) => {
+            const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' })
+            if (res.ok) setSubs(prev => prev.filter(s => s.id !== id))
+          }
+
+          const cycleLabel = (c: string) => ({ monthly: '/mo', yearly: '/yr', weekly: '/wk', quarterly: '/qtr' }[c] || '/mo')
+          const fmt = (n: number) => n >= 1000 ? `₹${(n/1000).toFixed(1)}K` : `₹${Math.round(n)}`
+
+          const CYCLE_COLORS: Record<string, string> = { monthly: '#6366f1', yearly: '#10b981', quarterly: '#f59e0b', weekly: '#06b6d4' }
+
+          const SubCard = ({ sub }: { sub: Subscription }) => {
+            const daysUntil = Math.ceil((new Date(sub.next_billing_date).getTime() - new Date(today).getTime()) / 86400000)
+            const isUrgent = daysUntil >= 0 && daysUntil <= sub.alert_days_before
+            const isOverdue = daysUntil < 0
+            const isCancelled = sub.status === 'cancelled' || sub.status === 'paused'
+            const color = CYCLE_COLORS[sub.billing_cycle] || '#6366f1'
+
+            return (
+              <div style={{ background: isCancelled ? '#f8fafc' : isUrgent ? '#fffbeb' : 'white', border: `1px solid ${isCancelled ? '#e2e8f0' : isUrgent ? '#fde68a' : '#e2e8f0'}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '10px', opacity: isCancelled ? 0.6 : 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
+                      🔄
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub.name}</p>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color, background: `${color}15`, padding: '1px 7px', borderRadius: '10px' }}>{sub.billing_cycle}</span>
+                        {sub.card_name && <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '1px 7px', borderRadius: '10px' }}>💳 {sub.card_name}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '10px' }}>
+                    <p style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{fmt(sub.amount)}<span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 400 }}>{cycleLabel(sub.billing_cycle)}</span></p>
+                  </div>
+                </div>
+
+                {!isCancelled && (
+                  <div style={{ marginTop: '10px', padding: '7px 10px', borderRadius: '8px', background: isOverdue ? '#fef2f2' : isUrgent ? '#fef3c7' : '#f0fdf4', display: 'inline-block' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 600, color: isOverdue ? '#b91c1c' : isUrgent ? '#92400e' : '#065f46', margin: 0 }}>
+                      {isOverdue
+                        ? `⚠️ Overdue — was due ${new Date(sub.next_billing_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                        : daysUntil === 0 ? '🔔 Bills today'
+                        : daysUntil === 1 ? '⏰ Bills tomorrow'
+                        : `📅 Bills in ${daysUntil} days — ${new Date(sub.next_billing_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                    </p>
+                  </div>
+                )}
+
+                {sub.notes && <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', marginBottom: 0 }}>{sub.notes}</p>}
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                  {!isCancelled && (
+                    <button onClick={() => cancelSub(sub.id)} style={{ flex: 1, padding: '7px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Cancel Subscription
+                    </button>
+                  )}
+                  <button onClick={() => deleteSub(sub.id)} style={{ padding: '7px 12px', background: '#f1f5f9', color: '#94a3b8', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    🗑
+                  </button>
+                </div>
+              </div>
+            )
+          }
+
+          return (
+            <div style={{ maxWidth: '560px' }}>
+              {/* Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                {[
+                  { label: 'Monthly Cost', value: fmt(totalMonthly), color: '#6366f1', bg: '#eef2ff' },
+                  { label: 'Active', value: String(activeSubs.length), color: '#10b981', bg: '#f0fdf4' },
+                  { label: 'Due This Week', value: String(upcomingThisWeek.length), color: upcomingThisWeek.length > 0 ? '#f59e0b' : '#10b981', bg: upcomingThisWeek.length > 0 ? '#fffbeb' : '#f0fdf4' },
+                ].map(({ label, value, color, bg }) => (
+                  <div key={label} style={{ background: bg, borderRadius: '12px', padding: '12px 14px', border: `1px solid ${color}22` }}>
+                    <p style={{ fontSize: '11px', color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>{label}</p>
+                    <p style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add button */}
+              <button onClick={() => { setShowSubForm(v => !v); setSubError(''); setSubForm(f => ({ ...f, next_billing_date: nextBillingDefault() })) }}
+                style={{ width: '100%', padding: '12px', background: showSubForm ? '#f1f5f9' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: showSubForm ? '#475569' : 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '14px', fontFamily: 'inherit' }}>
+                {showSubForm ? '✕ Cancel' : '+ Add Subscription / Autopay'}
+              </button>
+
+              {/* Add form */}
+              {showSubForm && (
+                <div style={{ background: '#f8fafc', borderRadius: '14px', padding: '18px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
+                  {subError && <div className="alert-error" style={{ marginBottom: '12px' }}>{subError}</div>}
+                  <form onSubmit={handleAddSub}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Service Name *</p>
+                        <input value={subForm.name} onChange={e => setSubForm(f => ({ ...f, name: e.target.value }))} placeholder="Netflix, Spotify…" style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} required />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Amount (₹) *</p>
+                        <input type="number" value={subForm.amount} onChange={e => setSubForm(f => ({ ...f, amount: e.target.value }))} placeholder="649" style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} required />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Billing Cycle</p>
+                        <select value={subForm.billing_cycle} onChange={e => setSubForm(f => ({ ...f, billing_cycle: e.target.value }))} style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                          <option value="yearly">Yearly</option>
+                          <option value="weekly">Weekly</option>
+                        </select>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Next Billing Date *</p>
+                        <input type="date" value={subForm.next_billing_date} onChange={e => setSubForm(f => ({ ...f, next_billing_date: e.target.value }))} style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} required />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Credit Card</p>
+                        <input value={subForm.card_name} onChange={e => setSubForm(f => ({ ...f, card_name: e.target.value }))} placeholder="HDFC, SBI, Axis…" style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Alert me (days before)</p>
+                        <input type="number" min="1" max="14" value={subForm.alert_days_before} onChange={e => setSubForm(f => ({ ...f, alert_days_before: e.target.value }))} style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Notes (optional)</p>
+                      <input value={subForm.notes} onChange={e => setSubForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. family plan, can cancel anytime" style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                    </div>
+                    <button type="submit" disabled={savingSub} style={{ width: '100%', padding: '11px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: savingSub ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                      {savingSub ? <span className="dot-loader"><span/><span/><span/></span> : 'Save Subscription'}
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {subSuccess && <div className="alert-success fade-in" style={{ marginBottom: '14px' }}>{subSuccess}</div>}
+
+              {subsLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>Loading…</div>
+              ) : activeSubs.length === 0 && cancelledSubs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '44px 0' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '10px' }}>🔄</div>
+                  <p style={{ fontWeight: 600, color: '#475569', marginBottom: '4px' }}>No subscriptions yet</p>
+                  <p style={{ fontSize: '13px', color: '#94a3b8' }}>Add one above or via Telegram:<br/><em>"netflix 649 monthly"</em></p>
+                </div>
+              ) : (
+                <>
+                  {activeSubs.length > 0 && (
+                    <>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active ({activeSubs.length})</p>
+                      {activeSubs.map(s => <SubCard key={s.id} sub={s} />)}
+                    </>
+                  )}
+                  {cancelledSubs.length > 0 && (
+                    <>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginTop: '16px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cancelled ({cancelledSubs.length})</p>
+                      {cancelledSubs.map(s => <SubCard key={s.id} sub={s} />)}
+                    </>
+                  )}
+                </>
+              )}
+
+              <div style={{ marginTop: '20px', padding: '14px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                  💬 <strong>Via Telegram:</strong> "netflix 649 monthly" · "spotify 119" · "cancel netflix"<br/>
+                  🔔 You get a Telegram alert before each billing date automatically.
+                </p>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
           <div style={{ maxWidth: '640px' }}>
