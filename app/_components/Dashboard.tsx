@@ -1587,11 +1587,11 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
           const fmt = (n: number) => n >= 1000 ? `₹${(n/1000).toFixed(1)}K` : `₹${n}`
 
-          const LoanCard = ({ loan }: { loan: Loan }) => {
+          const renderLoanCard = (loan: Loan) => {
             const isOverdue = loan.return_date && loan.return_date < today && loan.status === 'pending'
             const daysLeft = loan.return_date ? Math.ceil((new Date(loan.return_date).getTime() - new Date(today).getTime()) / 86400000) : null
             return (
-              <div style={{ background: isOverdue ? '#fef2f2' : '#f8fafc', border: `1px solid ${isOverdue ? '#fecaca' : '#e2e8f0'}`, borderRadius: '14px', padding: '16px 18px', marginBottom: '10px' }}>
+              <div key={loan.id} style={{ background: isOverdue ? '#fef2f2' : '#f8fafc', border: `1px solid ${isOverdue ? '#fecaca' : '#e2e8f0'}`, borderRadius: '14px', padding: '16px 18px', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: isOverdue ? '#fee2e2' : '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
@@ -1599,35 +1599,23 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     </div>
                     <div>
                       <p style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{loan.person_name}</p>
-                      <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                        Given {new Date(loan.given_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
+                      <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Given {new Date(loan.given_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     </div>
                   </div>
-                  <p style={{ fontSize: '20px', fontWeight: 800, color: isOverdue ? '#ef4444' : '#0f172a', margin: 0 }}>{fmt(loan.amount)}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 800, color: isOverdue ? '#ef4444' : '#0f172a', margin: 0 }}>₹{loan.amount}</p>
                 </div>
-
                 {loan.return_date && (
                   <div style={{ padding: '6px 10px', borderRadius: '8px', background: isOverdue ? '#fee2e2' : daysLeft !== null && daysLeft <= 3 ? '#fffbeb' : '#f0fdf4', marginBottom: '10px', display: 'inline-block' }}>
                     <p style={{ fontSize: '12px', fontWeight: 600, color: isOverdue ? '#b91c1c' : daysLeft !== null && daysLeft <= 3 ? '#92400e' : '#065f46', margin: 0 }}>
-                      {isOverdue
-                        ? `Overdue by ${Math.abs(daysLeft!)} day${Math.abs(daysLeft!) !== 1 ? 's' : ''}`
-                        : daysLeft === 0 ? 'Due today'
-                        : `Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — ${new Date(loan.return_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                      {isOverdue ? `Overdue by ${Math.abs(daysLeft!)} day${Math.abs(daysLeft!) !== 1 ? 's' : ''}` : daysLeft === 0 ? 'Due today' : `Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — ${new Date(loan.return_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
                     </p>
                   </div>
                 )}
-
                 {loan.notes && <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>{loan.notes}</p>}
-
                 {loan.status === 'pending' && (
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => markReturned(loan.id)} style={{ flex: 1, padding: '8px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      Mark Returned ✓
-                    </button>
-                    <button onClick={() => deleteLoan(loan.id)} style={{ padding: '8px 12px', background: '#f1f5f9', color: '#ef4444', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      🗑
-                    </button>
+                    <button onClick={() => markReturned(loan.id)} style={{ flex: 1, padding: '8px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Mark Returned ✓</button>
+                    <button onClick={() => deleteLoan(loan.id)} style={{ padding: '8px 12px', background: '#f1f5f9', color: '#ef4444', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
                   </div>
                 )}
                 {loan.status === 'returned' && (
@@ -1712,7 +1700,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   {pendingLoans.length > 0 && (
                     <>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending ({pendingLoans.length})</p>
-                      {pendingLoans.map(loan => <LoanCard key={loan.id} loan={loan} />)}
+                      {pendingLoans.map(loan => renderLoanCard(loan))}
                     </>
                   )}
 
@@ -1722,7 +1710,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                         <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Returned ({returnedLoans.length})</span>
                         <span style={{ fontSize: '12px', color: '#94a3b8' }}>{showReturnedLoans ? '▲ Hide' : '▼ Show'}</span>
                       </button>
-                      {showReturnedLoans && returnedLoans.map(loan => <LoanCard key={loan.id} loan={loan} />)}
+                      {showReturnedLoans && returnedLoans.map(loan => renderLoanCard(loan))}
                     </>
                   )}
                 </>
@@ -1804,23 +1792,19 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
           const cycleLabel = (c: string) => ({ monthly: '/mo', yearly: '/yr', weekly: '/wk', quarterly: '/qtr' }[c] || '/mo')
           const fmt = (n: number) => n >= 1000 ? `₹${(n/1000).toFixed(1)}K` : `₹${Math.round(n)}`
-
           const CYCLE_COLORS: Record<string, string> = { monthly: '#6366f1', yearly: '#10b981', quarterly: '#f59e0b', weekly: '#06b6d4' }
 
-          const SubCard = ({ sub }: { sub: Subscription }) => {
+          const renderSubCard = (sub: Subscription) => {
             const daysUntil = Math.ceil((new Date(sub.next_billing_date).getTime() - new Date(today).getTime()) / 86400000)
             const isUrgent = daysUntil >= 0 && daysUntil <= sub.alert_days_before
             const isOverdue = daysUntil < 0
             const isCancelled = sub.status === 'cancelled' || sub.status === 'paused'
             const color = CYCLE_COLORS[sub.billing_cycle] || '#6366f1'
-
             return (
-              <div style={{ background: isCancelled ? '#f8fafc' : isUrgent ? '#fffbeb' : 'white', border: `1px solid ${isCancelled ? '#e2e8f0' : isUrgent ? '#fde68a' : '#e2e8f0'}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '10px', opacity: isCancelled ? 0.6 : 1 }}>
+              <div key={sub.id} style={{ background: isCancelled ? '#f8fafc' : isUrgent ? '#fffbeb' : 'white', border: `1px solid ${isCancelled ? '#e2e8f0' : isUrgent ? '#fde68a' : '#e2e8f0'}`, borderRadius: '14px', padding: '14px 16px', marginBottom: '10px', opacity: isCancelled ? 0.6 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
-                      🔄
-                    </div>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>🔄</div>
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub.name}</p>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '3px' }}>
@@ -1833,30 +1817,17 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     <p style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{fmt(sub.amount)}<span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 400 }}>{cycleLabel(sub.billing_cycle)}</span></p>
                   </div>
                 </div>
-
                 {!isCancelled && (
                   <div style={{ marginTop: '10px', padding: '7px 10px', borderRadius: '8px', background: isOverdue ? '#fef2f2' : isUrgent ? '#fef3c7' : '#f0fdf4', display: 'inline-block' }}>
                     <p style={{ fontSize: '12px', fontWeight: 600, color: isOverdue ? '#b91c1c' : isUrgent ? '#92400e' : '#065f46', margin: 0 }}>
-                      {isOverdue
-                        ? `⚠️ Overdue — was due ${new Date(sub.next_billing_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                        : daysUntil === 0 ? '🔔 Bills today'
-                        : daysUntil === 1 ? '⏰ Bills tomorrow'
-                        : `📅 Bills in ${daysUntil} days — ${new Date(sub.next_billing_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                      {isOverdue ? `⚠️ Overdue — was due ${new Date(sub.next_billing_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : daysUntil === 0 ? '🔔 Bills today' : daysUntil === 1 ? '⏰ Bills tomorrow' : `📅 Bills in ${daysUntil} days — ${new Date(sub.next_billing_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
                     </p>
                   </div>
                 )}
-
                 {sub.notes && <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', marginBottom: 0 }}>{sub.notes}</p>}
-
                 <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                  {!isCancelled && (
-                    <button onClick={() => cancelSub(sub.id)} style={{ flex: 1, padding: '7px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      Cancel Subscription
-                    </button>
-                  )}
-                  <button onClick={() => deleteSub(sub.id)} style={{ padding: '7px 12px', background: '#f1f5f9', color: '#94a3b8', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    🗑
-                  </button>
+                  {!isCancelled && <button onClick={() => cancelSub(sub.id)} style={{ flex: 1, padding: '7px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel Subscription</button>}
+                  <button onClick={() => deleteSub(sub.id)} style={{ padding: '7px 12px', background: '#f1f5f9', color: '#94a3b8', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
                 </div>
               </div>
             )
@@ -1950,13 +1921,13 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   {activeSubs.length > 0 && (
                     <>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active ({activeSubs.length})</p>
-                      {activeSubs.map(s => <SubCard key={s.id} sub={s} />)}
+                      {activeSubs.map(s => renderSubCard(s))}
                     </>
                   )}
                   {cancelledSubs.length > 0 && (
                     <>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginTop: '16px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cancelled ({cancelledSubs.length})</p>
-                      {cancelledSubs.map(s => <SubCard key={s.id} sub={s} />)}
+                      {cancelledSubs.map(s => renderSubCard(s))}
                     </>
                   )}
                 </>
