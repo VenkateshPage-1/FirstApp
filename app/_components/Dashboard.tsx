@@ -919,11 +919,6 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     : 'Unlock Premium — ₹49'}
                 </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '12px' }}>
-                  {['🔒 Razorpay secured', '💳 UPI · Cards · Net Banking'].map(t => (
-                    <span key={t} style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>{t}</span>
-                  ))}
-                </div>
               </div>
             )
           }
