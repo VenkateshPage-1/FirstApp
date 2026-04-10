@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendMessage } from '@/lib/telegram'
 import { parseExpense } from '@/lib/parse-expense'
+import { parseLoan } from '@/lib/parse-loan'
 
 // Telegram sends a GET to verify the webhook is alive
 export async function GET() {
@@ -104,20 +105,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    const today = new Date()
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+    // Try loan detection first
+    const loan = parseLoan(text)
+    if (loan) {
+      await admin.from('loans').insert({
+        user_id: profile.user_id,
+        person_name: loan.person_name,
+        amount: loan.amount,
+        given_date: dateStr,
+        return_date: loan.return_date,
+        status: 'pending',
+      })
+
+      const returnStr = loan.return_date
+        ? `· return by ${new Date(loan.return_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+        : '· no return date'
+      await sendMessage(chatId, `🤝 Loan recorded — ₹${loan.amount} to ${loan.person_name} ${returnStr}`)
+      return NextResponse.json({ ok: true })
+    }
+
+    // Fall back to expense parsing
     const expense = await parseExpense(text)
 
     if (!expense) {
       await sendMessage(chatId,
-        "🤔 Couldn't read that as an expense.\n\n" +
-        'Try:\n' +
+        "🤔 Couldn't read that.\n\n" +
+        '<b>Expense:</b>\n' +
         '• 450 swiggy food\n' +
-        '• 200 petrol\n' +
-        '• 1500 electricity')
+        '• 200 petrol\n\n' +
+        '<b>Loan given:</b>\n' +
+        '• gave 5000 venkatesh return 3 days\n' +
+        '• lent 2000 ram return next week')
       return NextResponse.json({ ok: true })
     }
-
-    const today = new Date()
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
     await admin.from('expenses').insert({
       user_id: profile.user_id,

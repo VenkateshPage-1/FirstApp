@@ -27,6 +27,7 @@ interface Expense { id: string; amount: number; category: string; description: s
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
 interface EMI { id: string; name: string; amount: number; months_remaining: number }
 interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null }
+interface Loan { id: string; person_name: string; amount: number; given_date: string; return_date: string | null; status: 'pending' | 'returned'; notes: string | null }
 
 declare global { interface Window { Razorpay: new (opts: object) => { open(): void } } }
 
@@ -40,7 +41,7 @@ const emptyProfile: UserProfile = {
   monthly_income: 0, savings_goal_pct: 20, category_budgets: {}, emis: [],
   is_premium: false, premium_until: null,
 }
-type Tab = 'expenses' | 'analytics' | 'profile'
+type Tab = 'expenses' | 'analytics' | 'loans' | 'profile'
 
 // Financial categories classification
 const NEEDS_CATS = ['Food', 'Bills', 'Health']
@@ -95,6 +96,16 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [telegramBotUsername, setTelegramBotUsername] = useState('')
   const [telegramLoading, setTelegramLoading] = useState(false)
   const [telegramMsg, setTelegramMsg] = useState('')
+
+  // Loans state
+  const [loans, setLoans] = useState<Loan[]>([])
+  const [loansLoading, setLoansLoading] = useState(false)
+  const [loanForm, setLoanForm] = useState({ person_name: '', amount: '', given_date: new Date().toISOString().split('T')[0], return_date: '', notes: '' })
+  const [showLoanForm, setShowLoanForm] = useState(false)
+  const [loanError, setLoanError] = useState('')
+  const [loanSuccess, setLoanSuccess] = useState('')
+  const [savingLoan, setSavingLoan] = useState(false)
+  const [showReturnedLoans, setShowReturnedLoans] = useState(false)
 
   // Premium analytics setup state
   const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=emis, 3=budgets
@@ -253,6 +264,21 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
     }
     fetchAllExpenses()
   }, [filterMonth])
+
+  useEffect(() => {
+    const fetchLoans = async () => {
+      setLoansLoading(true)
+      try {
+        const res = await fetch('/api/loans')
+        if (!res.ok) return
+        const data = await res.json()
+        setLoans(data.loans ?? [])
+      } catch { /* silent */ } finally {
+        setLoansLoading(false)
+      }
+    }
+    fetchLoans()
+  }, [])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -502,10 +528,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
             <span style={{ color: '#10b981' }}>Track</span><span style={{ color: '#6366f1' }}>Penny</span>
           </span>
           <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
-            {(['expenses', 'analytics', 'profile'] as Tab[]).map(t => (
+            {(['expenses', 'analytics', 'loans', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
                 style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                {t === 'analytics' ? 'Analytics' : t}
+                {t === 'analytics' ? 'Analytics' : t === 'loans' ? 'Lent' : t}
               </button>
             ))}
           </div>
@@ -1491,6 +1517,208 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           )
         })()}
 
+        {/* ── LOANS TAB ── */}
+        {tab === 'loans' && (() => {
+          const pendingLoans = loans.filter(l => l.status === 'pending')
+          const returnedLoans = loans.filter(l => l.status === 'returned')
+          const today = new Date().toISOString().split('T')[0]
+
+          const totalLent = pendingLoans.reduce((s, l) => s + l.amount, 0)
+          const overdueLoans = pendingLoans.filter(l => l.return_date && l.return_date < today)
+
+          const handleAddLoan = async (e: React.FormEvent) => {
+            e.preventDefault()
+            setLoanError('')
+            if (!loanForm.person_name.trim() || !loanForm.amount) { setLoanError('Name and amount are required'); return }
+            setSavingLoan(true)
+            try {
+              const res = await fetch('/api/loans', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  person_name: loanForm.person_name.trim(),
+                  amount: Number(loanForm.amount),
+                  given_date: loanForm.given_date,
+                  return_date: loanForm.return_date || null,
+                  notes: loanForm.notes || null,
+                }),
+              })
+              const data = await res.json()
+              if (!res.ok) { setLoanError(data.error || 'Failed to add'); return }
+              setLoans(prev => [data.loan, ...prev])
+              setLoanForm({ person_name: '', amount: '', given_date: new Date().toISOString().split('T')[0], return_date: '', notes: '' })
+              setShowLoanForm(false)
+              setLoanSuccess('Loan added!')
+              setTimeout(() => setLoanSuccess(''), 2500)
+            } catch { setLoanError('An error occurred') } finally { setSavingLoan(false) }
+          }
+
+          const markReturned = async (id: string) => {
+            const res = await fetch(`/api/loans/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'returned' }),
+            })
+            if (res.ok) setLoans(prev => prev.map(l => l.id === id ? { ...l, status: 'returned' } : l))
+          }
+
+          const deleteLoan = async (id: string) => {
+            const res = await fetch(`/api/loans/${id}`, { method: 'DELETE' })
+            if (res.ok) setLoans(prev => prev.filter(l => l.id !== id))
+          }
+
+          const fmt = (n: number) => n >= 1000 ? `₹${(n/1000).toFixed(1)}K` : `₹${n}`
+
+          const LoanCard = ({ loan }: { loan: Loan }) => {
+            const isOverdue = loan.return_date && loan.return_date < today && loan.status === 'pending'
+            const daysLeft = loan.return_date ? Math.ceil((new Date(loan.return_date).getTime() - new Date(today).getTime()) / 86400000) : null
+            return (
+              <div style={{ background: isOverdue ? '#fef2f2' : '#f8fafc', border: `1px solid ${isOverdue ? '#fecaca' : '#e2e8f0'}`, borderRadius: '14px', padding: '16px 18px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: isOverdue ? '#fee2e2' : '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
+                      {loan.status === 'returned' ? '✅' : isOverdue ? '⚠️' : '🤝'}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{loan.person_name}</p>
+                      <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                        Given {new Date(loan.given_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '20px', fontWeight: 800, color: isOverdue ? '#ef4444' : '#0f172a', margin: 0 }}>{fmt(loan.amount)}</p>
+                </div>
+
+                {loan.return_date && (
+                  <div style={{ padding: '6px 10px', borderRadius: '8px', background: isOverdue ? '#fee2e2' : daysLeft !== null && daysLeft <= 3 ? '#fffbeb' : '#f0fdf4', marginBottom: '10px', display: 'inline-block' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 600, color: isOverdue ? '#b91c1c' : daysLeft !== null && daysLeft <= 3 ? '#92400e' : '#065f46', margin: 0 }}>
+                      {isOverdue
+                        ? `Overdue by ${Math.abs(daysLeft!)} day${Math.abs(daysLeft!) !== 1 ? 's' : ''}`
+                        : daysLeft === 0 ? 'Due today'
+                        : `Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — ${new Date(loan.return_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                    </p>
+                  </div>
+                )}
+
+                {loan.notes && <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>{loan.notes}</p>}
+
+                {loan.status === 'pending' && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => markReturned(loan.id)} style={{ flex: 1, padding: '8px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Mark Returned ✓
+                    </button>
+                    <button onClick={() => deleteLoan(loan.id)} style={{ padding: '8px 12px', background: '#f1f5f9', color: '#ef4444', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      🗑
+                    </button>
+                  </div>
+                )}
+                {loan.status === 'returned' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>✅ Returned</span>
+                    <button onClick={() => deleteLoan(loan.id)} style={{ padding: '4px 10px', background: 'none', color: '#94a3b8', border: 'none', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>Delete</button>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          return (
+            <div style={{ maxWidth: '560px' }}>
+              {/* Summary strip */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                {[
+                  { label: 'Total Lent', value: fmt(totalLent), color: '#6366f1', bg: '#eef2ff' },
+                  { label: 'Pending', value: String(pendingLoans.length), color: '#f59e0b', bg: '#fffbeb' },
+                  { label: 'Overdue', value: String(overdueLoans.length), color: overdueLoans.length > 0 ? '#ef4444' : '#10b981', bg: overdueLoans.length > 0 ? '#fef2f2' : '#f0fdf4' },
+                ].map(({ label, value, color, bg }) => (
+                  <div key={label} style={{ background: bg, borderRadius: '12px', padding: '12px 14px', border: `1px solid ${color}22` }}>
+                    <p style={{ fontSize: '11px', color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>{label}</p>
+                    <p style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add button */}
+              <button onClick={() => { setShowLoanForm(v => !v); setLoanError('') }} style={{ width: '100%', padding: '12px', background: showLoanForm ? '#f1f5f9' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: showLoanForm ? '#475569' : 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '14px', fontFamily: 'inherit' }}>
+                {showLoanForm ? '✕ Cancel' : '+ Record New Loan'}
+              </button>
+
+              {/* Add form */}
+              {showLoanForm && (
+                <div style={{ background: '#f8fafc', borderRadius: '14px', padding: '18px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
+                  {loanError && <div className="alert-error" style={{ marginBottom: '12px' }}>{loanError}</div>}
+                  <form onSubmit={handleAddLoan}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Person's Name *</p>
+                        <input value={loanForm.person_name} onChange={e => setLoanForm(f => ({ ...f, person_name: e.target.value }))} placeholder="Venkatesh" style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} required />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Amount (₹) *</p>
+                        <input type="number" value={loanForm.amount} onChange={e => setLoanForm(f => ({ ...f, amount: e.target.value }))} placeholder="5000" style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} required />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Given Date</p>
+                        <input type="date" value={loanForm.given_date} onChange={e => setLoanForm(f => ({ ...f, given_date: e.target.value }))} style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Return Date</p>
+                        <input type="date" value={loanForm.return_date} onChange={e => setLoanForm(f => ({ ...f, return_date: e.target.value }))} style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Notes (optional)</p>
+                      <input value={loanForm.notes} onChange={e => setLoanForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. for rent, emergency" style={{ width: '100%', padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                    </div>
+                    <button type="submit" disabled={savingLoan} style={{ width: '100%', padding: '11px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: savingLoan ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                      {savingLoan ? <span className="dot-loader"><span/><span/><span/></span> : 'Save Loan'}
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {loanSuccess && <div className="alert-success fade-in" style={{ marginBottom: '14px' }}>{loanSuccess}</div>}
+
+              {loansLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>Loading…</div>
+              ) : pendingLoans.length === 0 && returnedLoans.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '44px 0' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '10px' }}>🤝</div>
+                  <p style={{ fontWeight: 600, color: '#475569', marginBottom: '4px' }}>No loans recorded</p>
+                  <p style={{ fontSize: '13px', color: '#94a3b8' }}>Tap "+ Record New Loan" or send via Telegram:<br/><em>"gave 5000 venkatesh return 3 days"</em></p>
+                </div>
+              ) : (
+                <>
+                  {pendingLoans.length > 0 && (
+                    <>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending ({pendingLoans.length})</p>
+                      {pendingLoans.map(loan => <LoanCard key={loan.id} loan={loan} />)}
+                    </>
+                  )}
+
+                  {returnedLoans.length > 0 && (
+                    <>
+                      <button onClick={() => setShowReturnedLoans(v => !v)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', background: 'none', border: 'none', borderTop: '1px solid #e2e8f0', cursor: 'pointer', marginTop: '8px', fontFamily: 'inherit' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Returned ({returnedLoans.length})</span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>{showReturnedLoans ? '▲ Hide' : '▼ Show'}</span>
+                      </button>
+                      {showReturnedLoans && returnedLoans.map(loan => <LoanCard key={loan.id} loan={loan} />)}
+                    </>
+                  )}
+                </>
+              )}
+
+              <div style={{ marginTop: '20px', padding: '14px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                  💬 <strong>Via Telegram:</strong> "gave 5000 venkatesh return 3 days" · "lent 2000 ram return next week"
+                </p>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
           <div style={{ maxWidth: '640px' }}>
@@ -1690,7 +1918,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
       {/* Mobile bottom nav — visible only on ≤640px */}
       <nav className="dash-bottom-nav">
-        {([['expenses','💸','Expenses'],['analytics','📊','Analytics'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
+        {([['expenses','💸','Expenses'],['analytics','📊','Analytics'],['loans','🤝','Lent'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? 'active' : ''}>
             <span style={{ fontSize: '22px', lineHeight: 1 }}>{icon}</span>
             <span style={{ fontSize: '10px', marginTop: '2px' }}>{label}</span>
