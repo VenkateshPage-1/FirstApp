@@ -6,6 +6,7 @@ const nextConfig = {
   experimental: {
     instrumentationHook: true,
   },
+  serverExternalPackages: ['@react-pdf/renderer'],
   async redirects() {
     return []
   },

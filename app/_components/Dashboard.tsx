@@ -129,6 +129,9 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [savingLoan, setSavingLoan] = useState(false)
   const [showReturnedLoans, setShowReturnedLoans] = useState(false)
 
+  // PDF state
+  const [pdfLoading, setPdfLoading] = useState(false)
+
   // 80C tax tracker state
   const [editingTax, setEditingTax] = useState(false)
   const [taxDraft, setTaxDraft] = useState<Record<string,string>>({})
@@ -1190,9 +1193,49 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     {new Date(filterYear, filterMonthNum - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · {allExpenses.length} transactions
                   </p>
                 </div>
-                <button onClick={startEditing} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  ✏️ Edit Settings
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={startEditing} style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    ✏️ Edit Settings
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setPdfLoading(true)
+                      try {
+                        const { pdf } = await import('@react-pdf/renderer')
+                        const { default: MonthlyReport } = await import('../../lib/pdf/MonthlyReport')
+                        const blob = await pdf(<MonthlyReport data={{
+                          userName: userProfile.full_name || username,
+                          month: filterMonth,
+                          expenses: allExpenses,
+                          profile: {
+                            monthly_income: userProfile.monthly_income,
+                            savings_goal_pct: userProfile.savings_goal_pct,
+                            category_budgets: userProfile.category_budgets,
+                            emis: userProfile.emis,
+                            tax_investments: userProfile.tax_investments,
+                            assets: userProfile.assets,
+                            liabilities: userProfile.liabilities,
+                          },
+                          goals,
+                          loansGivenTotal: loans.filter(l => l.status === 'pending').reduce((s, l) => s + l.amount, 0),
+                        }} />).toBlob()
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `TrackPenny-${filterMonth}.pdf`
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      } catch (err) {
+                        console.error('PDF error', err)
+                      } finally {
+                        setPdfLoading(false)
+                      }
+                    }}
+                    disabled={pdfLoading}
+                    style={{ background: pdfLoading ? '#a5b4fc' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '13px', fontWeight: 600, cursor: pdfLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    {pdfLoading ? '⏳ Generating…' : '⬇️ PDF Report'}
+                  </button>
+                </div>
               </div>
               {analyticsSuccess && <div className="alert-success fade-in" style={{ marginBottom: '14px' }}>{analyticsSuccess}</div>}
 
