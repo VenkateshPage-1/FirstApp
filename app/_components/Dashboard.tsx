@@ -26,7 +26,8 @@ interface DashboardProps { username: string; onLogout: () => void }
 interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
 interface EMI { id: string; name: string; amount: number; months_remaining: number }
-interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null; salary_day?: number | null; tax_investments?: Record<string, number> }
+interface Goal { id: string; name: string; target_amount: number; saved_amount: number; target_date: string | null; emoji: string; status: 'active' | 'completed'; notes: string | null }
 interface Loan { id: string; person_name: string; amount: number; given_date: string; return_date: string | null; status: 'pending' | 'returned'; notes: string | null }
 interface Subscription { id: string; name: string; amount: number; billing_cycle: 'weekly' | 'monthly' | 'quarterly' | 'yearly'; next_billing_date: string; card_name: string | null; category: string; alert_days_before: number; status: 'active' | 'paused' | 'cancelled'; notes: string | null }
 
@@ -40,9 +41,9 @@ const emptyForm: ExpenseForm = {
 const emptyProfile: UserProfile = {
   full_name: '', bio: '', phone: '', location: '', website: '', occupation: '',
   monthly_income: 0, savings_goal_pct: 20, category_budgets: {}, emis: [],
-  is_premium: false, premium_until: null,
+  is_premium: false, premium_until: null, salary_day: null, tax_investments: {},
 }
-type Tab = 'expenses' | 'analytics' | 'loans' | 'subs' | 'profile'
+type Tab = 'expenses' | 'analytics' | 'loans' | 'subs' | 'goals' | 'profile'
 
 // Financial categories classification
 const NEEDS_CATS = ['Food', 'Bills', 'Health']
@@ -98,6 +99,17 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [telegramLoading, setTelegramLoading] = useState(false)
   const [telegramMsg, setTelegramMsg] = useState('')
 
+  // Goals state
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [goalsLoading, setGoalsLoading] = useState(false)
+  const [goalForm, setGoalForm] = useState({ name: '', target_amount: '', saved_amount: '0', target_date: '', emoji: '🎯', notes: '' })
+  const [showGoalForm, setShowGoalForm] = useState(false)
+  const [goalError, setGoalError] = useState('')
+  const [goalSuccess, setGoalSuccess] = useState('')
+  const [savingGoal, setSavingGoal] = useState(false)
+  const [addingToGoalId, setAddingToGoalId] = useState<string | null>(null)
+  const [addAmount, setAddAmount] = useState('')
+
   // Subscriptions state
   const [subs, setSubs] = useState<Subscription[]>([])
   const [subsLoading, setSubsLoading] = useState(false)
@@ -116,6 +128,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [loanSuccess, setLoanSuccess] = useState('')
   const [savingLoan, setSavingLoan] = useState(false)
   const [showReturnedLoans, setShowReturnedLoans] = useState(false)
+
+  // 80C tax tracker state
+  const [editingTax, setEditingTax] = useState(false)
+  const [taxDraft, setTaxDraft] = useState<Record<string,string>>({})
 
   // Premium analytics setup state
   const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=emis, 3=budgets
@@ -294,8 +310,18 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         setSubs(data.subscriptions ?? [])
       } catch { /* silent */ } finally { setSubsLoading(false) }
     }
+    const fetchGoals = async () => {
+      setGoalsLoading(true)
+      try {
+        const res = await fetch('/api/goals')
+        if (!res.ok) return
+        const data = await res.json()
+        setGoals(data.goals ?? [])
+      } catch { /* silent */ } finally { setGoalsLoading(false) }
+    }
     fetchLoans()
     fetchSubs()
+    fetchGoals()
   }, [])
 
   useEffect(() => {
@@ -546,10 +572,10 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
             <span style={{ color: '#10b981' }}>Track</span><span style={{ color: '#6366f1' }}>Penny</span>
           </span>
           <div className="dash-nav-tabs" style={{ display: 'flex', gap: '2px' }}>
-            {(['expenses', 'analytics', 'loans', 'subs', 'profile'] as Tab[]).map(t => (
+            {(['expenses', 'analytics', 'loans', 'subs', 'goals', 'profile'] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)} className="btn-pill"
                 style={{ padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: '13px', fontFamily: 'inherit', background: tab === t ? '#eef2ff' : 'transparent', color: tab === t ? '#6366f1' : '#64748b', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                {t === 'analytics' ? 'Analytics' : t === 'loans' ? 'Lent' : t === 'subs' ? 'Autopay' : t}
+                {t === 'analytics' ? 'Analytics' : t === 'loans' ? 'Lent' : t === 'subs' ? 'Autopay' : t === 'goals' ? 'Goals' : t}
               </button>
             ))}
           </div>
@@ -1524,6 +1550,109 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     }
                   </div>
 
+                  {/* Yearly projections */}
+                  {allExpenses.length > 0 && (() => {
+                    const yearlyProjection = Math.round(dailyRate * 365)
+                    const topCatEntry = [...allByCategory].sort((a,b) => b.total - a.total)[0]
+                    const topCatYearly = topCatEntry ? Math.round((topCatEntry.total / dayOfMonth) * 365) : 0
+                    return (
+                      <div style={card({ padding: '18px 20px', background: '#fffbeb', border: '1px solid #fef3c7' })}>
+                        <p style={{ fontSize: '14px', fontWeight: 700, color: '#92400e', marginBottom: '8px' }}>📈 Yearly Spend Projection</p>
+                        <p style={{ fontSize: '13px', color: '#78350f', lineHeight: 1.7 }}>
+                          At this pace you'll spend <strong>₹{yearlyProjection.toLocaleString('en-IN')}</strong> this year.
+                          {topCatEntry && <> Your biggest category is <strong>{topCatEntry.cat}</strong> — that's <strong>₹{topCatYearly.toLocaleString('en-IN')}/year</strong>.</>}
+                        </p>
+                        {income > 0 && (
+                          <p style={{ fontSize: '12px', color: '#a16207', marginTop: '6px' }}>
+                            Annual income: ₹{(income * 12).toLocaleString('en-IN')} · Projected gap: {yearlyProjection > income * 12 ? <strong style={{ color: '#dc2626' }}>₹{(yearlyProjection - income * 12).toLocaleString('en-IN')} overspend ⚠️</strong> : <strong style={{ color: '#16a34a' }}>₹{(income * 12 - yearlyProjection).toLocaleString('en-IN')} surplus ✅</strong>}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* 80C Tax Saver Tracker */}
+                  {(() => {
+                    const TAX_LIMIT = 150000
+                    const TAX_INSTRUMENTS = [
+                      { key: 'ppf', label: 'PPF', icon: '🏛️' },
+                      { key: 'elss', label: 'ELSS Mutual Fund', icon: '📈' },
+                      { key: 'lic', label: 'LIC / Insurance', icon: '🛡️' },
+                      { key: 'nps', label: 'NPS', icon: '🏗️' },
+                      { key: 'epf', label: 'EPF (Employee)', icon: '🏢' },
+                      { key: 'nsc', label: 'NSC / Tax Saver FD', icon: '🏦' },
+                    ]
+                    const taxInvest = userProfile.tax_investments ?? {}
+                    const totalInvested = Object.values(taxInvest).reduce((s, v) => s + (v as number), 0)
+                    const remaining = Math.max(0, TAX_LIMIT - totalInvested)
+                    const pct = Math.min(100, (totalInvested / TAX_LIMIT) * 100)
+                    const saveTaxInvestments = async () => {
+                      const updated: Record<string,number> = {}
+                      TAX_INSTRUMENTS.forEach(({ key }) => { if (taxDraft[key]) updated[key] = Number(taxDraft[key]) })
+                      await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...userProfile, tax_investments: updated }) })
+                      setUserProfile(p => ({ ...p, tax_investments: updated }))
+                      setEditingTax(false)
+                    }
+                    return (
+                      <div style={card({ padding: '18px 20px' })}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <div>
+                            <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>🧾 80C Tax Saver Tracker</p>
+                            <p style={{ fontSize: '12px', color: '#64748b' }}>₹1.5L limit under Section 80C</p>
+                          </div>
+                          <button onClick={() => { if (!editingTax) setTaxDraft(Object.fromEntries(TAX_INSTRUMENTS.map(i => [i.key, String(taxInvest[i.key] ?? '')]))); setEditingTax(v => !v) }}
+                            style={{ fontSize: '12px', color: '#6366f1', background: '#eef2ff', border: 'none', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}>
+                            {editingTax ? 'Cancel' : 'Update'}
+                          </button>
+                        </div>
+                        {/* Progress bar */}
+                        <div style={{ height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden', marginBottom: '6px' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'linear-gradient(90deg,#10b981,#34d399)' : pct >= 60 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: '5px', transition: 'width 0.8s ease' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>Invested: <strong style={{ color: '#0f172a' }}>₹{totalInvested.toLocaleString('en-IN')}</strong></span>
+                          <span style={{ fontSize: '12px', color: remaining === 0 ? '#10b981' : '#64748b' }}>{remaining === 0 ? '✅ Limit reached!' : `₹${remaining.toLocaleString('en-IN')} more to save tax`}</span>
+                        </div>
+                        {editingTax ? (
+                          <div>
+                            {TAX_INSTRUMENTS.map(({ key, label, icon }) => (
+                              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '16px', width: '22px' }}>{icon}</span>
+                                <span style={{ fontSize: '13px', color: '#334155', flex: 1 }}>{label}</span>
+                                <input type="number" value={taxDraft[key] ?? ''} onChange={e => setTaxDraft(p => ({ ...p, [key]: e.target.value }))}
+                                  placeholder="₹0" style={{ width: '90px', padding: '5px 8px', borderRadius: '7px', border: '1px solid #e2e8f0', fontSize: '13px', textAlign: 'right' }} />
+                              </div>
+                            ))}
+                            <button onClick={saveTaxInvestments}
+                              style={{ marginTop: '8px', width: '100%', padding: '9px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                              Save
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {TAX_INSTRUMENTS.filter(i => (taxInvest[i.key] ?? 0) > 0).map(({ key, label, icon }) => (
+                              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <span style={{ fontSize: '13px' }}>{icon}</span>
+                                <span style={{ fontSize: '12px', color: '#334155' }}>{label}</span>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#6366f1' }}>₹{(taxInvest[key] as number).toLocaleString('en-IN')}</span>
+                              </div>
+                            ))}
+                            {Object.values(taxInvest).every(v => !v) && (
+                              <p style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No investments added yet. Click Update to add.</p>
+                            )}
+                          </div>
+                        )}
+                        {income > 0 && totalInvested > 0 && (
+                          <div style={{ marginTop: '10px', padding: '8px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                            <p style={{ fontSize: '12px', color: '#166534' }}>
+                              💰 Estimated tax saved: <strong>₹{Math.round(Math.min(totalInvested, TAX_LIMIT) * 0.3).toLocaleString('en-IN')}</strong> (at 30% slab) or <strong>₹{Math.round(Math.min(totalInvested, TAX_LIMIT) * 0.2).toLocaleString('en-IN')}</strong> (at 20% slab)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
                 </div>
               </div>
             </div>
@@ -1938,6 +2067,242 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           )
         })()}
 
+        {/* ── GOALS TAB ── */}
+        {tab === 'goals' && (() => {
+          const activeGoals = goals.filter(g => g.status === 'active')
+          const completedGoals = goals.filter(g => g.status === 'completed')
+
+          const handleAddGoal = async (e: React.FormEvent) => {
+            e.preventDefault()
+            setGoalError('')
+            if (!goalForm.name || !goalForm.target_amount) { setGoalError('Name and target amount are required'); return }
+            setSavingGoal(true)
+            try {
+              const res = await fetch('/api/goals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: goalForm.name,
+                  target_amount: Number(goalForm.target_amount),
+                  saved_amount: Number(goalForm.saved_amount) || 0,
+                  target_date: goalForm.target_date || null,
+                  emoji: goalForm.emoji || '🎯',
+                  notes: goalForm.notes || null,
+                }),
+              })
+              const data = await res.json()
+              if (!res.ok) throw new Error(data.error)
+              setGoals(prev => [data.goal, ...prev])
+              setGoalForm({ name: '', target_amount: '', saved_amount: '0', target_date: '', emoji: '🎯', notes: '' })
+              setShowGoalForm(false)
+              setGoalSuccess('Goal added!')
+              setTimeout(() => setGoalSuccess(''), 2500)
+            } catch (err) {
+              setGoalError(err instanceof Error ? err.message : 'Failed to add goal')
+            } finally {
+              setSavingGoal(false)
+            }
+          }
+
+          const handleAddToGoal = async (goalId: string) => {
+            const amt = Number(addAmount)
+            if (!amt || amt <= 0) return
+            setAddingToGoalId(goalId)
+            try {
+              const goal = goals.find(g => g.id === goalId)
+              if (!goal) return
+              const newSaved = goal.saved_amount + amt
+              const isCompleted = newSaved >= goal.target_amount
+              const res = await fetch(`/api/goals/${goalId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ saved_amount: newSaved, status: isCompleted ? 'completed' : 'active' }),
+              })
+              const data = await res.json()
+              if (!res.ok) throw new Error(data.error)
+              setGoals(prev => prev.map(g => g.id === goalId ? data.goal : g))
+              setAddingToGoalId(null)
+              setAddAmount('')
+            } catch { setAddingToGoalId(null) }
+          }
+
+          const handleDeleteGoal = async (goalId: string) => {
+            try {
+              await fetch(`/api/goals/${goalId}`, { method: 'DELETE' })
+              setGoals(prev => prev.filter(g => g.id !== goalId))
+            } catch { /* silent */ }
+          }
+
+          const renderGoalCard = (goal: Goal) => {
+            const pct = Math.min(100, goal.target_amount > 0 ? (goal.saved_amount / goal.target_amount) * 100 : 0)
+            const remaining = Math.max(0, goal.target_amount - goal.saved_amount)
+            const isCompleted = goal.status === 'completed'
+            const daysLeft = goal.target_date ? Math.ceil((new Date(goal.target_date).getTime() - Date.now()) / 86400000) : null
+            return (
+              <div key={goal.id} style={{ background: isCompleted ? '#f0fdf4' : 'white', border: `1px solid ${isCompleted ? '#bbf7d0' : '#f1f5f9'}`, borderRadius: '14px', padding: '16px 18px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '24px' }}>{goal.emoji}</span>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '2px' }}>{goal.name}</p>
+                      <p style={{ fontSize: '12px', color: '#64748b' }}>
+                        {isCompleted ? '✅ Completed!' : `₹${remaining.toLocaleString('en-IN')} to go`}
+                        {daysLeft !== null && !isCompleted && ` · ${daysLeft > 0 ? `${daysLeft}d left` : 'Overdue'}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '15px', fontWeight: 800, color: isCompleted ? '#10b981' : '#6366f1' }}>₹{goal.saved_amount.toLocaleString('en-IN')}</p>
+                    <p style={{ fontSize: '11px', color: '#94a3b8' }}>of ₹{goal.target_amount.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden', marginBottom: '10px' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: isCompleted ? 'linear-gradient(90deg,#10b981,#34d399)' : 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: '4px', transition: 'width 0.8s ease' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: isCompleted ? '#10b981' : '#6366f1', fontWeight: 700 }}>{pct.toFixed(0)}%</span>
+                  {!isCompleted && (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      {addingToGoalId === goal.id ? (
+                        <>
+                          <input type="number" value={addAmount} onChange={e => setAddAmount(e.target.value)}
+                            placeholder="₹ amount" autoFocus
+                            style={{ width: '100px', padding: '5px 10px', borderRadius: '8px', border: '1px solid #c7d2fe', fontSize: '13px', outline: 'none' }} />
+                          <button onClick={() => handleAddToGoal(goal.id)}
+                            style={{ padding: '5px 12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>
+                            Add
+                          </button>
+                          <button onClick={() => { setAddingToGoalId(null); setAddAmount('') }}
+                            style={{ padding: '5px 10px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => { setAddingToGoalId(goal.id); setAddAmount('') }}
+                          style={{ padding: '5px 14px', background: '#eef2ff', color: '#6366f1', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>
+                          + Add money
+                        </button>
+                      )}
+                      <button onClick={() => handleDeleteGoal(goal.id)}
+                        style={{ padding: '5px 10px', background: 'none', color: '#94a3b8', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                        🗑
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          }
+
+          return (
+            <div style={{ maxWidth: '640px' }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: 0 }}>🎯 Savings Goals</h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>Track what you're saving towards</p>
+                </div>
+                <button onClick={() => setShowGoalForm(v => !v)}
+                  style={{ padding: '8px 16px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                  {showGoalForm ? 'Cancel' : '+ New Goal'}
+                </button>
+              </div>
+
+              {goalError && <div className="alert-error" style={{ marginBottom: '12px' }}>{goalError}</div>}
+              {goalSuccess && <div className="alert-success fade-in" style={{ marginBottom: '12px' }}>{goalSuccess}</div>}
+
+              {/* Add goal form */}
+              {showGoalForm && (
+                <div style={{ background: 'white', border: '1px solid #e0e7ff', borderRadius: '14px', padding: '18px 20px', marginBottom: '16px' }}>
+                  <form onSubmit={handleAddGoal}>
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '10px' }}>
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '5px' }}>Emoji</p>
+                          <input value={goalForm.emoji} onChange={e => setGoalForm(p => ({ ...p, emoji: e.target.value }))}
+                            maxLength={2} style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '20px', textAlign: 'center', outline: 'none' }} />
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '5px' }}>Goal Name *</p>
+                          <input value={goalForm.name} onChange={e => setGoalForm(p => ({ ...p, name: e.target.value }))}
+                            placeholder="e.g. Emergency Fund, Laptop, Trip to Goa"
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '5px' }}>Target Amount *</p>
+                          <input type="number" value={goalForm.target_amount} onChange={e => setGoalForm(p => ({ ...p, target_amount: e.target.value }))}
+                            placeholder="₹50,000"
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '5px' }}>Already Saved</p>
+                          <input type="number" value={goalForm.saved_amount} onChange={e => setGoalForm(p => ({ ...p, saved_amount: e.target.value }))}
+                            placeholder="₹0"
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '5px' }}>Target Date (optional)</p>
+                        <input type="date" value={goalForm.target_date} onChange={e => setGoalForm(p => ({ ...p, target_date: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                      <button type="submit" disabled={savingGoal}
+                        style={{ padding: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
+                        {savingGoal ? 'Saving…' : 'Create Goal'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Goals list */}
+              {goalsLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: '100px', borderRadius: '14px' }} />)}
+                </div>
+              ) : goals.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                  <p style={{ fontSize: '32px', marginBottom: '10px' }}>🎯</p>
+                  <p style={{ fontSize: '15px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>No goals yet</p>
+                  <p style={{ fontSize: '13px', color: '#94a3b8' }}>Create your first savings goal — emergency fund, travel, gadget, anything!</p>
+                </div>
+              ) : (
+                <>
+                  {activeGoals.length > 0 && (
+                    <>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active ({activeGoals.length})</p>
+                      {activeGoals.map(g => renderGoalCard(g))}
+                    </>
+                  )}
+                  {completedGoals.length > 0 && (
+                    <>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginTop: '16px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed 🎉 ({completedGoals.length})</p>
+                      {completedGoals.map(g => renderGoalCard(g))}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Total saved summary */}
+              {goals.length > 0 && (
+                <div style={{ marginTop: '16px', padding: '14px 18px', background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', borderRadius: '12px', border: '1px solid #e0e7ff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#6366f1' }}>Total saved across all goals</span>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#6366f1' }}>₹{goals.reduce((s, g) => s + g.saved_amount, 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>Total target</span>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>₹{goals.reduce((s, g) => s + g.target_amount, 0).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
         {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
           <div style={{ maxWidth: '640px' }}>
@@ -1980,6 +2345,13 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                           placeholder={placeholder} style={inp} disabled={isSavingProfile} />
                       </div>
                     ))}
+                  </div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={lbl}>Salary Day <span style={{ color: '#94a3b8', fontWeight: 400 }}>(day of month you get paid)</span></p>
+                    <input type="number" min="1" max="31"
+                      value={profileForm.salary_day ?? ''}
+                      onChange={e => setProfileForm(p => ({ ...p, salary_day: e.target.value ? Number(e.target.value) : null }))}
+                      placeholder="e.g. 1, 15, 30" style={inp} disabled={isSavingProfile} />
                   </div>
                   <div style={{ marginBottom: '16px' }}>
                     <p style={lbl}>Bio</p>
@@ -2029,6 +2401,12 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                       {userProfile.website
                         ? <a href={userProfile.website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '14px', fontWeight: 500, color: '#6366f1', textDecoration: 'none' }}>Visit ↗</a>
                         : <p style={{ fontSize: '14px', fontWeight: 500, color: '#cbd5e1' }}>Not set</p>}
+                    </div>
+                    <div>
+                      <p style={lbl}>Salary Day</p>
+                      <p style={{ fontSize: '14px', fontWeight: 500, color: userProfile.salary_day ? '#0f172a' : '#cbd5e1' }}>
+                        {userProfile.salary_day ? `Every ${userProfile.salary_day}${[11,12,13].includes(userProfile.salary_day) ? 'th' : userProfile.salary_day % 10 === 1 ? 'st' : userProfile.salary_day % 10 === 2 ? 'nd' : userProfile.salary_day % 10 === 3 ? 'rd' : 'th'} of the month` : 'Not set'}
+                      </p>
                     </div>
                   </div>
                   {userProfile.bio && (
@@ -2137,7 +2515,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
       {/* Mobile bottom nav — visible only on ≤640px */}
       <nav className="dash-bottom-nav">
-        {([['expenses','💸','Expenses'],['analytics','📊','Analytics'],['loans','🤝','Lent'],['subs','🔄','Autopay'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
+        {([['expenses','💸','Expenses'],['analytics','📊','Analytics'],['loans','🤝','Lent'],['subs','🔄','Autopay'],['goals','🎯','Goals'],['profile','👤','Profile']] as [Tab,string,string][]).map(([t, icon, label]) => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? 'active' : ''}>
             <span style={{ fontSize: '22px', lineHeight: 1 }}>{icon}</span>
             <span style={{ fontSize: '10px', marginTop: '2px' }}>{label}</span>
