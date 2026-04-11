@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendMessage } from '@/lib/telegram'
+import { sendMessage, sendDocument } from '@/lib/telegram'
 import { parseExpense } from '@/lib/parse-expense'
 import { parseLoan } from '@/lib/parse-loan'
 import { parseSubscription } from '@/lib/parse-subscription'
+import { parseReportMonth, generateReportForUser } from '@/lib/pdf/generatePDFBuffer'
 
 // Telegram sends a GET to verify the webhook is alive
 export async function GET() {
@@ -109,6 +110,27 @@ export async function POST(request: NextRequest) {
     const today = new Date()
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
+    // Handle "report" / "pdf" / "send report" / "monthly report" command
+    if (/\b(report|pdf|monthly report|send report)\b/i.test(text)) {
+      await sendMessage(chatId, '⏳ Generating your report… I\'ll send it in a few seconds.')
+      try {
+        const { year, month } = parseReportMonth(text)
+        const monthName = new Date(year, month - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
+        const buffer = await generateReportForUser(profile.user_id, year, month)
+        const filename = `TrackPenny-${year}-${String(month).padStart(2, '0')}.pdf`
+        await sendDocument(
+          chatId,
+          buffer,
+          filename,
+          `📊 <b>TrackPenny Report — ${monthName}</b>\nYour full financial summary is ready!`,
+        )
+      } catch (err) {
+        console.error('PDF report generation error:', err)
+        await sendMessage(chatId, '❌ Sorry, couldn\'t generate the report. Try again in a moment.')
+      }
+      return NextResponse.json({ ok: true })
+    }
+
     // Handle "cancel <name>" command
     const cancelMatch = text.match(/^cancel\s+(.+)$/i)
     if (cancelMatch) {
@@ -192,7 +214,12 @@ export async function POST(request: NextRequest) {
         '<b>Subscription/Autopay:</b>\n' +
         '• netflix 649 monthly\n' +
         '• spotify subscription 119\n' +
-        '• cancel netflix')
+        '• cancel netflix\n\n' +
+        '<b>PDF Report:</b>\n' +
+        '• report\n' +
+        '• report last month\n' +
+        '• report march\n' +
+        '• report march 2025')
       return NextResponse.json({ ok: true })
     }
 
