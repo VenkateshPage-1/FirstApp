@@ -623,7 +623,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         </div>
       </nav>
 
-      <div className="dash-content dash-scroll-area" style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <div className="dash-content dash-scroll-area" style={{ maxWidth: '860px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
 
         {/* ── EXPENSES TAB ── */}
         {tab === 'expenses' && (
@@ -1044,7 +1044,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           if (!isSetup) {
             // ── SETUP FLOW ──
             return (
-              <div style={{ maxWidth: '560px', margin: '0 auto' }}>
+              <div style={{ maxWidth: '720px', margin: '0 auto' }}>
                 {/* Hero */}
                 <div style={{ ...card({ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', border: 'none', textAlign: 'center', padding: '32px 28px' }) }}>
                   <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
@@ -1754,7 +1754,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           }
 
           return (
-            <div style={{ maxWidth: '560px' }}>
+            <div style={{ maxWidth: '720px' }}>
               {/* Summary strip */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
                 {[
@@ -1959,7 +1959,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           }
 
           return (
-            <div style={{ maxWidth: '560px' }}>
+            <div style={{ maxWidth: '720px' }}>
               {/* Summary */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
                 {[
@@ -2197,7 +2197,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
           }
 
           return (
-            <div style={{ maxWidth: '640px' }}>
+            <div style={{ maxWidth: '720px' }}>
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div>
@@ -2449,7 +2449,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
 
         {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
-          <div style={{ maxWidth: '640px' }}>
+          <div style={{ maxWidth: '720px' }}>
             <div style={card()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
                 <div>

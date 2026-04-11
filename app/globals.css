@@ -461,12 +461,12 @@ html { -webkit-text-size-adjust: 100%; }
 }
 
 .dash-nav {
-  padding: 0 28px;
-  height: 56px;
+  padding: 0 20px;
+  height: 52px;
 }
 
 .dash-content {
-  padding: 24px 28px;
+  padding: 20px 20px;
 }
 
 /* Form grids: 2 columns by default, collapse on mobile via media query */
@@ -505,7 +505,7 @@ html { -webkit-text-size-adjust: 100%; }
 }
 
 /* ── Dashboard on tablet / mobile ── */
-@media (max-width: 900px) {
+@media (max-width: 640px) {
   .dash-grid {
     grid-template-columns: 1fr;
   }
