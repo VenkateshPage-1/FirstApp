@@ -26,7 +26,7 @@ interface DashboardProps { username: string; onLogout: () => void }
 interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
 interface EMI { id: string; name: string; amount: number; months_remaining: number }
-interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null; salary_day?: number | null; tax_investments?: Record<string, number> }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null; salary_day?: number | null; tax_investments?: Record<string, number>; assets?: Record<string, number>; liabilities?: Record<string, number> }
 interface Goal { id: string; name: string; target_amount: number; saved_amount: number; target_date: string | null; emoji: string; status: 'active' | 'completed'; notes: string | null }
 interface Loan { id: string; person_name: string; amount: number; given_date: string; return_date: string | null; status: 'pending' | 'returned'; notes: string | null }
 interface Subscription { id: string; name: string; amount: number; billing_cycle: 'weekly' | 'monthly' | 'quarterly' | 'yearly'; next_billing_date: string; card_name: string | null; category: string; alert_days_before: number; status: 'active' | 'paused' | 'cancelled'; notes: string | null }
@@ -41,7 +41,7 @@ const emptyForm: ExpenseForm = {
 const emptyProfile: UserProfile = {
   full_name: '', bio: '', phone: '', location: '', website: '', occupation: '',
   monthly_income: 0, savings_goal_pct: 20, category_budgets: {}, emis: [],
-  is_premium: false, premium_until: null, salary_day: null, tax_investments: {},
+  is_premium: false, premium_until: null, salary_day: null, tax_investments: {}, assets: {}, liabilities: {},
 }
 type Tab = 'expenses' | 'analytics' | 'loans' | 'subs' | 'goals' | 'profile'
 
@@ -132,6 +132,11 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   // 80C tax tracker state
   const [editingTax, setEditingTax] = useState(false)
   const [taxDraft, setTaxDraft] = useState<Record<string,string>>({})
+
+  // Net worth state
+  const [editingNetWorth, setEditingNetWorth] = useState(false)
+  const [assetDraft, setAssetDraft] = useState<Record<string,string>>({})
+  const [liabilityDraft, setLiabilityDraft] = useState<Record<string,string>>({})
 
   // Premium analytics setup state
   const [analyticsSetupStep, setAnalyticsSetupStep] = useState(0) // 0=income, 1=savings, 2=emis, 3=budgets
@@ -2299,6 +2304,149 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                   </div>
                 </div>
               )}
+
+              {/* ── NET WORTH TRACKER ── */}
+              {(() => {
+                const ASSET_KEYS = [
+                  { key: 'cash_bank', label: 'Cash & Bank', icon: '💵' },
+                  { key: 'mutual_funds', label: 'Mutual Funds / Stocks', icon: '📈' },
+                  { key: 'ppf_epf', label: 'PPF / EPF', icon: '🏛️' },
+                  { key: 'fd', label: 'Fixed Deposits', icon: '🏦' },
+                  { key: 'gold', label: 'Gold / Jewellery', icon: '💛' },
+                  { key: 'real_estate', label: 'Real Estate', icon: '🏠' },
+                  { key: 'vehicle', label: 'Vehicle', icon: '🚗' },
+                  { key: 'other_assets', label: 'Other Assets', icon: '📦' },
+                ]
+                const LIABILITY_KEYS = [
+                  { key: 'home_loan', label: 'Home Loan', icon: '🏠' },
+                  { key: 'car_loan', label: 'Car Loan', icon: '🚗' },
+                  { key: 'personal_loan', label: 'Personal Loan', icon: '💳' },
+                  { key: 'credit_card', label: 'Credit Card Debt', icon: '🔴' },
+                  { key: 'education_loan', label: 'Education Loan', icon: '🎓' },
+                  { key: 'other_debt', label: 'Other Debt', icon: '📋' },
+                ]
+
+                const assets = userProfile.assets ?? {}
+                const liabilities = userProfile.liabilities ?? {}
+
+                // Auto-include: loans given as asset, active EMI loan balances as liability
+                const loansGivenTotal = loans.filter(l => l.status === 'pending').reduce((s, l) => s + l.amount, 0)
+                const totalAssets = ASSET_KEYS.reduce((s, { key }) => s + (assets[key] ?? 0), 0) + loansGivenTotal
+                const totalLiabilities = LIABILITY_KEYS.reduce((s, { key }) => s + (liabilities[key] ?? 0), 0)
+                const netWorth = totalAssets - totalLiabilities
+                const isPositive = netWorth >= 0
+
+                const saveNetWorth = async () => {
+                  const newAssets: Record<string,number> = {}
+                  const newLiabilities: Record<string,number> = {}
+                  ASSET_KEYS.forEach(({ key }) => { if (assetDraft[key]) newAssets[key] = Number(assetDraft[key]) })
+                  LIABILITY_KEYS.forEach(({ key }) => { if (liabilityDraft[key]) newLiabilities[key] = Number(liabilityDraft[key]) })
+                  await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...userProfile, assets: newAssets, liabilities: newLiabilities }) })
+                  setUserProfile(p => ({ ...p, assets: newAssets, liabilities: newLiabilities }))
+                  setEditingNetWorth(false)
+                }
+
+                return (
+                  <div style={{ marginTop: '20px', background: 'white', border: '1px solid #f1f5f9', borderRadius: '16px', padding: '18px 20px' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <div>
+                        <p style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', margin: 0 }}>💼 Net Worth</p>
+                        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Assets − Liabilities</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!editingNetWorth) {
+                            setAssetDraft(Object.fromEntries(ASSET_KEYS.map(({ key }) => [key, String(assets[key] ?? '')])))
+                            setLiabilityDraft(Object.fromEntries(LIABILITY_KEYS.map(({ key }) => [key, String(liabilities[key] ?? '')])))
+                          }
+                          setEditingNetWorth(v => !v)
+                        }}
+                        style={{ fontSize: '12px', color: '#6366f1', background: '#eef2ff', border: 'none', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}>
+                        {editingNetWorth ? 'Cancel' : 'Update'}
+                      </button>
+                    </div>
+
+                    {/* Net worth number */}
+                    <div style={{ textAlign: 'center', padding: '16px', background: isPositive ? 'linear-gradient(135deg,#f0fdf4,#dcfce7)' : 'linear-gradient(135deg,#fef2f2,#fee2e2)', borderRadius: '14px', marginBottom: '14px', border: `1px solid ${isPositive ? '#bbf7d0' : '#fecaca'}` }}>
+                      <p style={{ fontSize: '11px', fontWeight: 600, color: isPositive ? '#166534' : '#991b1b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>Your Net Worth</p>
+                      <p style={{ fontSize: '32px', fontWeight: 900, color: isPositive ? '#16a34a' : '#dc2626', letterSpacing: '-1px', margin: 0 }}>
+                        {isPositive ? '' : '−'}₹{Math.abs(netWorth).toLocaleString('en-IN')}
+                      </p>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Total Assets</p>
+                          <p style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a', margin: 0 }}>₹{totalAssets.toLocaleString('en-IN')}</p>
+                        </div>
+                        <div style={{ width: '1px', background: '#e2e8f0' }} />
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>Total Liabilities</p>
+                          <p style={{ fontSize: '14px', fontWeight: 700, color: '#dc2626', margin: 0 }}>₹{totalLiabilities.toLocaleString('en-IN')}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {loansGivenTotal > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', background: '#f0fdf4', borderRadius: '8px', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '12px' }}>🤝</span>
+                        <span style={{ fontSize: '12px', color: '#166534' }}>Auto-includes ₹{loansGivenTotal.toLocaleString('en-IN')} you lent to others</span>
+                      </div>
+                    )}
+
+                    {editingNetWorth ? (
+                      <div>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a', marginBottom: '8px' }}>✅ Assets (what you own)</p>
+                        {ASSET_KEYS.map(({ key, label, icon }) => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '15px', width: '22px' }}>{icon}</span>
+                            <span style={{ fontSize: '13px', color: '#334155', flex: 1 }}>{label}</span>
+                            <input type="number" value={assetDraft[key] ?? ''}
+                              onChange={e => setAssetDraft(p => ({ ...p, [key]: e.target.value }))}
+                              placeholder="₹0" style={{ width: '100px', padding: '5px 8px', borderRadius: '7px', border: '1px solid #e2e8f0', fontSize: '13px', textAlign: 'right' }} />
+                          </div>
+                        ))}
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626', marginTop: '14px', marginBottom: '8px' }}>🔴 Liabilities (what you owe)</p>
+                        {LIABILITY_KEYS.map(({ key, label, icon }) => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '15px', width: '22px' }}>{icon}</span>
+                            <span style={{ fontSize: '13px', color: '#334155', flex: 1 }}>{label}</span>
+                            <input type="number" value={liabilityDraft[key] ?? ''}
+                              onChange={e => setLiabilityDraft(p => ({ ...p, [key]: e.target.value }))}
+                              placeholder="₹0" style={{ width: '100px', padding: '5px 8px', borderRadius: '7px', border: '1px solid #e2e8f0', fontSize: '13px', textAlign: 'right' }} />
+                          </div>
+                        ))}
+                        <button onClick={saveNetWorth}
+                          style={{ marginTop: '12px', width: '100%', padding: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
+                          Save Net Worth
+                        </button>
+                      </div>
+                    ) : (totalAssets > 0 || totalLiabilities > 0) ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {ASSET_KEYS.filter(({ key }) => (assets[key] ?? 0) > 0).map(({ key, label, icon }) => (
+                          <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#f0fdf4', borderRadius: '8px' }}>
+                            <span style={{ fontSize: '13px', color: '#166534' }}>{icon} {label}</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>+₹{(assets[key] as number).toLocaleString('en-IN')}</span>
+                          </div>
+                        ))}
+                        {loansGivenTotal > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#f0fdf4', borderRadius: '8px' }}>
+                            <span style={{ fontSize: '13px', color: '#166534' }}>🤝 Money lent out</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>+₹{loansGivenTotal.toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        {LIABILITY_KEYS.filter(({ key }) => (liabilities[key] ?? 0) > 0).map(({ key, label, icon }) => (
+                          <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#fef2f2', borderRadius: '8px' }}>
+                            <span style={{ fontSize: '13px', color: '#991b1b' }}>{icon} {label}</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>−₹{(liabilities[key] as number).toLocaleString('en-IN')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', fontStyle: 'italic' }}>Click Update to enter your assets and liabilities</p>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )
         })()}
