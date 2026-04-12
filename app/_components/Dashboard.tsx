@@ -26,7 +26,7 @@ interface DashboardProps { username: string; onLogout: () => void }
 interface Expense { id: string; amount: number; category: string; description: string; date: string; payment_method: string }
 interface ExpenseForm { amount: string; category: string; description: string; date: string; payment_method: string }
 interface EMI { id: string; name: string; amount: number; months_remaining: number }
-interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null; salary_day?: number | null; tax_investments?: Record<string, number>; assets?: Record<string, number>; liabilities?: Record<string, number> }
+interface UserProfile { full_name: string; bio: string; phone: string; location: string; website: string; occupation: string; monthly_income: number; savings_goal_pct: number; category_budgets: Record<string, number>; emis: EMI[]; is_premium: boolean; premium_until: string | null; telegram_chat_id?: string | null; botforge_key?: string | null; salary_day?: number | null; tax_investments?: Record<string, number>; assets?: Record<string, number>; liabilities?: Record<string, number> }
 interface Goal { id: string; name: string; target_amount: number; saved_amount: number; target_date: string | null; emoji: string; status: 'active' | 'completed'; notes: string | null }
 interface Loan { id: string; person_name: string; amount: number; given_date: string; return_date: string | null; status: 'pending' | 'returned'; notes: string | null }
 interface Subscription { id: string; name: string; amount: number; billing_cycle: 'weekly' | 'monthly' | 'quarterly' | 'yearly'; next_billing_date: string; card_name: string | null; category: string; alert_days_before: number; status: 'active' | 'paused' | 'cancelled'; notes: string | null }
@@ -98,6 +98,9 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
   const [telegramBotUsername, setTelegramBotUsername] = useState('')
   const [telegramLoading, setTelegramLoading] = useState(false)
   const [telegramMsg, setTelegramMsg] = useState('')
+  const [botforgeWebhookUrl, setBotforgeWebhookUrl] = useState<string | null>(null)
+  const [botforgeLoading, setBotforgeLoading] = useState(false)
+  const [botforgeMsg, setBotforgeMsg] = useState('')
 
   // Goals state
   const [goals, setGoals] = useState<Goal[]>([])
@@ -339,7 +342,13 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         const res = await fetch('/api/profile')
         if (res.status === 401) { handleLogout(); return }
         const data = await res.json()
-        if (data.profile) { setUserProfile(data.profile); setProfileForm(data.profile) }
+        if (data.profile) {
+          setUserProfile(data.profile)
+          setProfileForm(data.profile)
+          if (data.profile.botforge_key) {
+            setBotforgeWebhookUrl(`${window.location.origin}/api/botforge/webhook?key=${data.profile.botforge_key}`)
+          }
+        }
       } catch {
         setProfileError('Failed to load profile')
       } finally {
@@ -2649,6 +2658,84 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
                     className={btnClass('primary')}
                     style={btn('linear-gradient(135deg,#6366f1,#8b5cf6)', 'white', { padding: '9px 20px' })}>
                     {telegramLoading ? <span className="dot-loader"><span/><span/><span/></span> : 'Connect Telegram'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* BotForge Connect */}
+            <div style={{ ...card(), marginTop: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '24px' }}>🤖</span>
+                <div>
+                  <p style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Connect BotForge</p>
+                  <p style={{ fontSize: '13px', color: '#64748b' }}>Log expenses via any BotForge bot — app, WhatsApp, or web</p>
+                </div>
+              </div>
+
+              {botforgeWebhookUrl ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#f0fdf4', borderRadius: '10px', marginTop: '12px', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '16px' }}>✅</span>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#065f46' }}>BotForge is connected</p>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
+                    Paste this URL in your BotForge bot{"'"}s Webhook settings (select <strong>{'"'}My Server Replies{'"'}</strong> mode):
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#f8fafc', border: '1px dashed #c7d2fe', borderRadius: '10px', marginBottom: '10px' }}>
+                    <code style={{ fontSize: '12px', fontWeight: 600, color: '#6366f1', flex: 1, wordBreak: 'break-all' }}>{botforgeWebhookUrl}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(botforgeWebhookUrl); setBotforgeMsg('Copied!') }}
+                      style={{ fontSize: '12px', color: '#6366f1', background: '#e0e7ff', border: 'none', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}>
+                      Copy
+                    </button>
+                  </div>
+                  {botforgeMsg && <p style={{ fontSize: '13px', color: '#10b981', marginTop: '6px', marginBottom: '8px' }}>{botforgeMsg}</p>}
+                  <button
+                    onClick={async () => {
+                      setBotforgeLoading(true)
+                      setBotforgeMsg('')
+                      try {
+                        await fetch('/api/botforge/connect', { method: 'DELETE' })
+                        setBotforgeWebhookUrl(null)
+                        setBotforgeMsg('')
+                      } finally {
+                        setBotforgeLoading(false)
+                      }
+                    }}
+                    disabled={botforgeLoading}
+                    style={{ fontSize: '13px', color: '#ef4444', background: 'none', border: '1px solid #fecaca', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer' }}>
+                    Disconnect BotForge
+                  </button>
+                </div>
+              ) : (
+                <div style={{ marginTop: '12px' }}>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
+                    Create a bot in BotForge, then paste the webhook URL to start logging expenses through it.
+                  </p>
+                  {botforgeMsg && <p style={{ fontSize: '13px', color: '#ef4444', marginBottom: '8px' }}>{botforgeMsg}</p>}
+                  <button
+                    onClick={async () => {
+                      setBotforgeLoading(true)
+                      setBotforgeMsg('')
+                      try {
+                        const res = await fetch('/api/botforge/connect', { method: 'POST' })
+                        const data = await res.json()
+                        if (data.webhook_url) {
+                          setBotforgeWebhookUrl(data.webhook_url)
+                        } else {
+                          setBotforgeMsg('Failed to generate key. Try again.')
+                        }
+                      } catch {
+                        setBotforgeMsg('Something went wrong. Try again.')
+                      } finally {
+                        setBotforgeLoading(false)
+                      }
+                    }}
+                    disabled={botforgeLoading}
+                    className={btnClass('primary')}
+                    style={btn('linear-gradient(135deg,#f59e0b,#f97316)', 'white', { padding: '9px 20px' })}>
+                    {botforgeLoading ? <span className="dot-loader"><span/><span/><span/></span> : 'Generate Webhook URL'}
                   </button>
                 </div>
               )}
